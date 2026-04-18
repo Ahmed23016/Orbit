@@ -13,7 +13,7 @@
 - `capacitor.config.ts`: Capacitor app config
 - `vercel.json`: Vercel build config
 - `.github/workflows/ci.yml`: lint, web build, debug APK, Vercel preview/production deploys
-- `.github/workflows/release-mobile.yml`: signed Android release builds
+- `.github/workflows/release-mobile.yml`: tag release workflow for lint, web build, Vercel deploy, and APK build
 
 ## Prerequisites
 
@@ -302,10 +302,12 @@ The repo also includes:
 .github/workflows/release-mobile.yml
 ```
 
-This workflow is Android-only and is used for:
+This workflow runs when you create a tag like `v1.0.0` and is used for:
 
-- signed Android release APK
-- signed Android release AAB
+- linting the app
+- building the web app
+- deploying the release to Vercel production
+- building a release APK artifact
 - optional Google Play upload
 
 It can run:
@@ -327,26 +329,15 @@ It can run:
 android/signing-secrets.local.txt
 ```
 
-### Android Signing
-
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_PASSWORD`
-
-These are also already present in:
-
-```bash
-android/signing-secrets.local.txt
-```
-
-The signed release workflow uses the generated alias `orbit-upload` directly, so you do not need to add `ANDROID_KEY_ALIAS` in GitHub anymore.
-
 ## What The Release Workflow Produces
 
 Android:
 
-- signed release APK artifact
-- signed release AAB artifact
+- release APK artifact
+
+Web:
+
+- Vercel production deployment
 
 ## Useful Scripts
 

@@ -7,9 +7,33 @@ on:
       - "v*"
 
 jobs:
-  android_release:
-    name: Signed Android Release
+  web_checks:
+    name: Lint And Build Web For Release
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build Web
+        run: npm run build
+
+  android_release:
+    name: Build Android APK For Release
+    runs-on: ubuntu-latest
+    needs: web_checks
 
     steps:
       - name: Checkout
@@ -33,17 +57,6 @@ jobs:
       - name: Build Web
         run: npm run build
 
-      - name: Decode Android Keystore
-        shell: bash
-        run: |
-          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/orbit-upload-keystore.jks
-
-      - name: Verify Android Keystore
-        working-directory: android
-        shell: bash
-        run: |
-          keytool -list -v -storetype PKCS12 -keystore orbit-upload-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias orbit-upload > /dev/null
-
       - name: Sync Capacitor Android
         run: npx cap sync android
 
@@ -51,23 +64,48 @@ jobs:
         working-directory: android
         run: chmod +x gradlew
 
-      - name: Build Signed Android Release
+      - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleRelease bundleRelease
-        env:
-          ORBIT_UPLOAD_STORE_FILE: orbit-upload-keystore.jks
-          ORBIT_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ORBIT_UPLOAD_KEY_ALIAS: orbit-upload
-          ORBIT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew assembleDebug
 
-      - name: Upload Android Release APK
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: orbit-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload Android Release AAB
-        uses: actions/upload-artifact@v4
+  deploy_vercel_release:
+    name: Deploy Release To Vercel
+    runs-on: ubuntu-latest
+    needs: web_checks
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          name: orbit-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Pull Vercel Production Environment
+        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Vercel Production
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy Vercel Production
+        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
