@@ -6,7 +6,8 @@ It supports:
 
 - web deployment on Vercel
 - Android and iPhone builds through Capacitor
-- a lighter phone-first UI that hides heavier chart views on small screens
+- a phone-first UI that simplifies heavier views on smaller screens
+- Android release signing through GitHub Actions
 
 ## What Is In This Repo
 
@@ -15,6 +16,8 @@ It supports:
 - `ios/`: Capacitor iOS project
 - `capacitor.config.ts`: Capacitor app config
 - `vercel.json`: Vercel build config
+- `.github/workflows/ci.yml`: lint, web build, debug APK, Vercel preview/production deploys
+- `.github/workflows/release-mobile.yml`: signed Android release builds
 
 ## Prerequisites
 
@@ -27,7 +30,7 @@ For Android builds:
 
 - Android Studio
 - Android SDK
-- Java 17 or whatever Android Studio currently recommends for your Gradle setup
+- Java 17+ or the version your local Gradle setup expects
 
 For iPhone builds:
 
@@ -42,31 +45,23 @@ For web deploys:
 
 ## Install
 
-Clone the repo and install dependencies:
-
 ```bash
 npm install
 ```
 
 ## Run The Web App Locally
 
-Start the dev server:
-
 ```bash
 npm run dev
 ```
 
-This runs the Vite development server for the web app.
-
 ## Build The Web App
-
-Create the production build:
 
 ```bash
 npm run build
 ```
 
-The output is written to:
+The production output is written to:
 
 ```bash
 dist/
@@ -74,37 +69,105 @@ dist/
 
 ## Lint The Project
 
-Run linting:
-
 ```bash
 npm run lint
 ```
 
-## Build Everything For Phones
+## Generate An APK Locally
+
+The easiest local APK is the Android debug APK.
+
+From the project root:
+
+```bash
+npm install
+npm run cap:sync
+```
+
+Then build the APK.
+
+### On Windows
+
+```bash
+cd android
+gradlew.bat assembleDebug
+```
+
+### On macOS Or Linux
+
+```bash
+cd android
+./gradlew assembleDebug
+```
+
+The generated APK will be here:
+
+```bash
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Build A Signed Android Release Locally
+
+From the project root:
+
+```bash
+npm run cap:sync
+cd android
+gradlew.bat assembleRelease bundleRelease
+```
+
+On macOS or Linux:
+
+```bash
+npm run cap:sync
+cd android
+./gradlew assembleRelease bundleRelease
+```
+
+If you want the release build to be signed, set these environment variables before the build:
+
+```bash
+ORBIT_UPLOAD_STORE_FILE
+ORBIT_UPLOAD_STORE_PASSWORD
+ORBIT_UPLOAD_KEY_ALIAS
+ORBIT_UPLOAD_KEY_PASSWORD
+```
+
+## Generated Signing Secrets
+
+The generated Android signing values and discovered Vercel IDs are stored locally in:
+
+```bash
+android/signing-secrets.local.txt
+```
+
+That file is ignored by Git and currently contains:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+When you add GitHub repository secrets, copy those values into GitHub Actions secrets with the same names.
+
+## Capacitor Workflow
 
 The normal Capacitor workflow is:
 
 1. Build the web app
-2. Copy/sync the built files into native projects
+2. Sync the built files into the native project
 3. Open the native IDE
-4. Build/run from Android Studio or Xcode
+4. Build and run from Android Studio or Xcode
 
-### Sync Web Changes Into Native Projects
-
-Recommended command:
+Recommended sync command:
 
 ```bash
 npm run cap:sync
 ```
 
-This does:
-
-```bash
-npm run build
-cap sync
-```
-
-If you only want to copy updated web assets without plugin/platform sync:
+If you only want to copy updated web assets:
 
 ```bash
 npm run cap:copy
@@ -154,7 +217,7 @@ npx cap add ios
 
 ## Full Build Order
 
-If you want the shortest “build everything” sequence, use this order:
+If you want the shortest "build everything" sequence, use this order:
 
 ### Web production build
 
@@ -180,7 +243,7 @@ npm run cap:open:ios
 
 ## Deploy To Vercel
 
-This repo is already configured for Vercel with:
+This repo is configured for Vercel with:
 
 - `vite` framework
 - `npm run build` as the build command
@@ -192,11 +255,7 @@ This repo is already configured for Vercel with:
 2. Keep the detected Vite settings
 3. Deploy
 
-After that, future pushes can trigger deployments automatically.
-
 ### Option 2: Deploy From The CLI
-
-From the repo root:
 
 ```bash
 vercel deploy
@@ -208,15 +267,97 @@ For production:
 vercel --prod
 ```
 
-## Mobile UX Notes
+## GitHub Actions Pipeline
 
-Orbit intentionally behaves differently on smaller screens:
+This repo includes:
 
-- the core prayer information stays front-and-center
-- heavier chart sections are hidden or reduced on phones
-- the UI uses safer spacing for mobile screens and device safe areas
+```bash
+.github/workflows/ci.yml
+```
 
-This is deliberate so the app feels more like a phone app and less like a squeezed desktop dashboard.
+It does:
+
+- `npm ci`
+- `npm run lint`
+- `npm run build`
+- Android debug APK build
+- Vercel preview deploys for pull requests
+- Vercel production deploys for pushes to `main`
+
+### What Runs On Pull Requests
+
+- lint
+- web build
+- debug APK artifact
+- Vercel preview deploy comment when Vercel secrets are configured
+
+### What Runs On Push To `main`
+
+- lint
+- web build
+- debug APK artifact
+- Vercel production deployment when Vercel secrets are configured
+
+## Release Workflow
+
+The repo also includes:
+
+```bash
+.github/workflows/release-mobile.yml
+```
+
+This workflow is Android-only and is used for:
+
+- signed Android release APK
+- signed Android release AAB
+- optional Google Play upload
+
+It can run:
+
+- manually from GitHub Actions
+- automatically when you push a tag like `v1.0.0`
+
+## GitHub Secrets You Need
+
+### Vercel
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+`VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` are already present in:
+
+```bash
+android/signing-secrets.local.txt
+```
+
+### Android Signing
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+These are also already present in:
+
+```bash
+android/signing-secrets.local.txt
+```
+
+### Optional Google Play Upload
+
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
+
+## What The Release Workflow Produces
+
+Android:
+
+- signed release APK artifact
+- signed release AAB artifact
+
+If the Play upload toggle is enabled and the Google Play secret exists:
+
+- Android AAB upload to Google Play
 
 ## Useful Scripts
 
@@ -233,15 +374,13 @@ npm run cap:open:ios
 
 ## Troubleshooting
 
-### Web build works, phone app is outdated
+### Web build works but the phone app is outdated
 
 Run:
 
 ```bash
 npm run cap:sync
 ```
-
-You need to sync after changing the web app.
 
 ### Android or iOS native project is missing
 
@@ -254,11 +393,16 @@ npx cap add ios
 
 ### Vercel does not deploy
 
-Make sure either:
+Make sure:
 
-- the repo is connected in the Vercel dashboard, or
-- you are logged in through the Vercel CLI and deploy from the project root
+- `VERCEL_TOKEN` exists in GitHub secrets
+- `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` match your Vercel project
+- the repo is connected in Vercel, or you deploy from the Vercel CLI
+
+### Signed Android release build fails locally
+
+Make sure the four `ORBIT_UPLOAD_*` variables are set in your shell before running `assembleRelease`.
 
 ### Build is large
 
-The current Vite build still shows a large-chunk warning. That does not block building, but it is a good next optimization target if you want faster initial loads.
+The current Vite build may still show a large-chunk warning. That does not block deployment, but code-splitting is a good next optimization target.

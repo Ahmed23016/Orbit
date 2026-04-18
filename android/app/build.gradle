@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+def signingValue = { String key ->
+    return project.findProperty(key) ?: System.getenv(key)
+}
+
 android {
     namespace = "com.orbit.prayertimes"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +20,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            def storeFilePath = signingValue("ORBIT_UPLOAD_STORE_FILE")
+            if (storeFilePath) {
+                storeFile rootProject.file(storeFilePath)
+                storePassword signingValue("ORBIT_UPLOAD_STORE_PASSWORD")
+                keyAlias signingValue("ORBIT_UPLOAD_KEY_ALIAS")
+                keyPassword signingValue("ORBIT_UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            if (signingValue("ORBIT_UPLOAD_STORE_FILE")) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

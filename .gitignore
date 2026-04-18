@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 .capacitor
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.secret
+*.secrets
+android/signing-secrets.local.txt
 
 # Editor directories and files
 .vscode/*
