@@ -75,8 +75,8 @@ jobs:
           name: orbit-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-  android_release_apk:
-    name: Build Android Release APK
+  android_apk_main:
+    name: Build Android APK On Main
     runs-on: ubuntu-latest
     needs: web_checks
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -103,17 +103,6 @@ jobs:
       - name: Build Web
         run: npm run build
 
-      - name: Decode Android Keystore
-        shell: bash
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/orbit-upload-keystore.jks
-
-      - name: Verify Android Keystore
-        working-directory: android
-        shell: bash
-        run: |
-          keytool -list -v -keystore orbit-upload-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias orbit-upload > /dev/null
-
       - name: Sync Capacitor Android
         run: npx cap sync android
 
@@ -121,20 +110,15 @@ jobs:
         working-directory: android
         run: chmod +x gradlew
 
-      - name: Build Signed Android Release APK
+      - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleRelease
-        env:
-          ORBIT_UPLOAD_STORE_FILE: orbit-upload-keystore.jks
-          ORBIT_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ORBIT_UPLOAD_KEY_ALIAS: orbit-upload
-          ORBIT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew assembleDebug
 
-      - name: Upload Release APK Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: orbit-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: orbit-debug-apk-main
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
   deploy_vercel_preview:
     name: Deploy Vercel Preview

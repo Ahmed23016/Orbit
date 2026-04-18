@@ -339,7 +339,7 @@ These are also already present in:
 android/signing-secrets.local.txt
 ```
 
-The workflow now uses the generated alias `orbit-upload` directly, so you do not need to add `ANDROID_KEY_ALIAS` in GitHub anymore.
+The signed release workflow uses the generated alias `orbit-upload` directly, so you do not need to add `ANDROID_KEY_ALIAS` in GitHub anymore.
 
 ## What The Release Workflow Produces
 

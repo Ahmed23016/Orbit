@@ -36,13 +36,13 @@ jobs:
       - name: Decode Android Keystore
         shell: bash
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/orbit-upload-keystore.jks
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/orbit-upload-keystore.jks
 
       - name: Verify Android Keystore
         working-directory: android
         shell: bash
         run: |
-          keytool -list -v -keystore orbit-upload-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias orbit-upload > /dev/null
+          keytool -list -v -storetype PKCS12 -keystore orbit-upload-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias orbit-upload > /dev/null
 
       - name: Sync Capacitor Android
         run: npx cap sync android
