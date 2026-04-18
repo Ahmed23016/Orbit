@@ -1,6 +1,11 @@
 import { SectionCard } from "@/components/orbit/SectionCard";
 import { calculationMethods } from "@/lib/orbit/constants";
-import { countdown, formatDuration } from "@/lib/orbit/time";
+import {
+  countdown,
+  formatCoordinate,
+  formatDuration,
+  formatTimeZoneLabel,
+} from "@/lib/orbit/time";
 import type { MethodKey } from "@/lib/orbit/types";
 
 type MoonData = {
@@ -24,6 +29,9 @@ type DailySummaryCardProps = {
   now: Date;
   method: MethodKey;
   cityLabel: string;
+  latitude: number;
+  longitude: number;
+  timeZone: string;
 };
 
 export function DailySummaryCard({
@@ -33,6 +41,9 @@ export function DailySummaryCard({
   now,
   method,
   cityLabel,
+  latitude,
+  longitude,
+  timeZone,
 }: DailySummaryCardProps) {
   const rows = [
     { label: "Solar noon reference", value: stats.solarNoon },
@@ -41,23 +52,29 @@ export function DailySummaryCard({
     { label: "Next event countdown", value: countdown(nextPrayer.value, now) },
     { label: "Current method", value: calculationMethods[method].label },
     { label: "Selected city", value: cityLabel },
+    {
+      label: "Coordinates",
+      value: `${formatCoordinate(latitude, "lat")} / ${formatCoordinate(longitude, "lng")}`,
+    },
+    {
+      label: "Time zone",
+      value: formatTimeZoneLabel(timeZone),
+    },
   ];
 
   return (
     <SectionCard
       title="Daily summary"
-      description="Useful numbers derived from today’s sky and prayer schedule."
+      description="Useful numbers derived from the selected day's sky and prayer schedule."
       contentClassName="grid gap-3"
     >
       {rows.map((row) => (
         <div
           key={row.label}
-          className="flex items-center justify-between rounded-2xl border border-cyan-500/10 bg-slate-900/60 p-4"
+          className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4"
         >
           <span className="text-slate-400">{row.label}</span>
-          <span className="max-w-[55%] text-right font-medium text-white">
-            {row.value}
-          </span>
+          <span className="max-w-[55%] text-right font-medium text-white">{row.value}</span>
         </div>
       ))}
     </SectionCard>

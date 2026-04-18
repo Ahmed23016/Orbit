@@ -23,7 +23,7 @@ export function PrayerSpacingCard({ spacingData }: PrayerSpacingCardProps) {
   return (
     <SectionCard
       title="Prayer spacing"
-      description="How much time sits between the main events of the day."
+      description="How much time sits between the prayers of the day."
     >
       <div className="h-[320px] w-full">
         <ResponsiveContainer width="100%" height="100%">

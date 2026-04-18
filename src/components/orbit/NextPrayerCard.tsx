@@ -1,6 +1,6 @@
 import { SectionCard } from "@/components/orbit/SectionCard";
 import { calculationMethods } from "@/lib/orbit/constants";
-import { countdown, formatTime } from "@/lib/orbit/time";
+import { countdown, formatTime, formatTimeZoneLabel } from "@/lib/orbit/time";
 import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
 
 type NextPrayer = {
@@ -13,6 +13,7 @@ type NextPrayerCardProps = {
   now: Date;
   method: MethodKey;
   madhab: MadhabKey;
+  timeZone: string;
 };
 
 export function NextPrayerCard({
@@ -20,26 +21,26 @@ export function NextPrayerCard({
   now,
   method,
   madhab,
+  timeZone,
 }: NextPrayerCardProps) {
   return (
     <SectionCard
       title="Next prayer"
-      description="Live countdown to the next upcoming prayer."
+      description="The important thing first: what is next, when it is, and how long is left."
       contentClassName="space-y-5"
     >
       <div>
         <div className="text-5xl font-semibold tracking-tight text-white">
           {nextPrayer.label}
         </div>
-        <div className="mt-2 text-2xl text-cyan-300">
-          {formatTime(nextPrayer.value)}
+        <div className="mt-2 text-3xl text-cyan-300">
+          {formatTime(nextPrayer.value, timeZone)}
         </div>
+        <div className="mt-2 text-sm text-slate-400">{formatTimeZoneLabel(timeZone)}</div>
       </div>
 
       <div className="rounded-3xl border border-cyan-500/10 bg-cyan-500/[0.05] p-4">
-        <div className="text-xs uppercase tracking-[0.28em] text-cyan-300/70">
-          Countdown
-        </div>
+        <div className="text-xs uppercase tracking-[0.28em] text-cyan-300/70">Countdown</div>
         <div className="mt-2 text-4xl font-semibold text-white">
           {countdown(nextPrayer.value, now)}
         </div>

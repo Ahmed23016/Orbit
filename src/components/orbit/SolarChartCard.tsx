@@ -24,38 +24,40 @@ type SolarChartCardProps = {
   chartData: ChartRow[];
   prayerMarkers: PrayerMarker[];
   now: Date;
+  timeZone: string;
 };
 
 export function SolarChartCard({
   chartData,
   prayerMarkers,
   now,
+  timeZone,
 }: SolarChartCardProps) {
   return (
     <SectionCard
       title="Solar altitude and prayer timeline"
-      description="Live time marker, prayer references, and solar altitude curve for the selected location."
+      description="The Timeline"
       className="xl:col-span-2"
     >
-      <div className="h-[500px] w-full">
+      <div className="h-[420px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 18, right: 18, left: -10, bottom: 8 }}>
-            <CartesianGrid stroke="rgba(34,211,238,0.12)" strokeDasharray="4 4" />
+            <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="4 4" />
 
             <XAxis
               type="number"
               dataKey="time"
               domain={[0, 24]}
               tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 12 }}
-              tickFormatter={(v: number | string) => `${pad(Math.floor(Number(v)))}:00`}
+              tickFormatter={(value: number | string) => `${pad(Math.floor(Number(value)))}:00`}
             />
 
             <YAxis tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 12 }} />
 
             <Tooltip
               contentStyle={{
-                background: "#020817",
-                border: "1px solid rgba(34,211,238,0.18)",
+                background: "#09111f",
+                border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 18,
                 color: "white",
               }}
@@ -65,7 +67,7 @@ export function SolarChartCard({
               }}
               formatter={(value) => {
                 const num = Number(value ?? 0);
-                return [`${num.toFixed(1)}°`, "Solar altitude"];
+                return [`${num.toFixed(1)} deg`, "Solar altitude"];
               }}
             />
 
@@ -73,24 +75,24 @@ export function SolarChartCard({
               type="monotone"
               dataKey="daylight"
               stroke="none"
-              fill="rgba(34,211,238,0.08)"
+              fill="rgba(56,189,248,0.12)"
             />
 
             <ReferenceLine
-              x={minutesSinceMidnight(now) / 60}
+              x={minutesSinceMidnight(now, timeZone) / 60}
               stroke="rgba(250,204,21,0.95)"
               strokeDasharray="6 6"
             />
 
-            {prayerMarkers.map((p) => (
+            {prayerMarkers.map((prayer) => (
               <ReferenceLine
-                key={p.label}
-                x={hourValue(p.value)}
-                stroke="rgba(34,211,238,0.3)"
+                key={prayer.label}
+                x={hourValue(prayer.value, timeZone)}
+                stroke="rgba(251,191,36,0.24)"
                 label={{
-                  value: p.label,
+                  value: prayer.label,
                   position: "top",
-                  fill: "rgba(165,243,252,0.9)",
+                  fill: "rgba(253,224,71,0.88)",
                   fontSize: 11,
                 }}
               />
@@ -99,7 +101,7 @@ export function SolarChartCard({
             <Line
               type="monotone"
               dataKey="altitude"
-              stroke="#22d3ee"
+              stroke="#38bdf8"
               strokeWidth={3}
               dot={false}
             />

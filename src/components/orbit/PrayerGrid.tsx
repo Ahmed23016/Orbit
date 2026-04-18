@@ -13,14 +13,14 @@ type PrayerGridProps = {
 
 export function PrayerGrid({ items }: PrayerGridProps) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
         const Icon = item.icon;
 
         return (
           <Card
             key={item.title}
-            className="rounded-[24px] border border-cyan-500/10 bg-slate-950/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_16px_36px_rgba(0,0,0,0.28)]"
+            className="rounded-[20px] border border-cyan-500/10 bg-slate-950/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_16px_36px_rgba(0,0,0,0.28)] md:rounded-[24px]"
           >
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.28em] text-cyan-300/85">
@@ -30,7 +30,7 @@ export function PrayerGrid({ items }: PrayerGridProps) {
             </CardHeader>
 
             <CardContent>
-              <div className="text-4xl font-semibold tracking-tight text-white">
+              <div className="text-2xl font-semibold tracking-tight text-white md:text-4xl">
                 {item.value}
               </div>
             </CardContent>

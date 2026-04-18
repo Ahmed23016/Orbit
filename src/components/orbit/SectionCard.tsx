@@ -1,5 +1,6 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReactNode } from "react";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type SectionCardProps = {
   title: string;
@@ -17,11 +18,13 @@ export function SectionCard({
   children,
 }: SectionCardProps) {
   return (
-    <Card className={`rounded-[30px] border border-cyan-500/10 bg-slate-950/75 ${className}`}>
+    <Card
+      className={`rounded-[24px] border border-white/10 bg-slate-950/68 shadow-[0_24px_80px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl md:rounded-[30px] ${className}`}
+    >
       <CardHeader>
-        <CardTitle className="text-2xl text-white">{title}</CardTitle>
+        <CardTitle className="text-xl text-white md:text-2xl">{title}</CardTitle>
         {description ? (
-          <CardDescription className="text-slate-400">{description}</CardDescription>
+          <CardDescription className="max-w-2xl text-slate-400">{description}</CardDescription>
         ) : null}
       </CardHeader>
 

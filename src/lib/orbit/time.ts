@@ -1,13 +1,140 @@
+import type { HijriMethodKey } from "./types";
+
 export function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-export function formatTime(date: Date) {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function getFormatter(
+  timeZone: string | undefined,
+  options: Intl.DateTimeFormatOptions
+) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    ...options,
+  });
 }
 
-export function minutesSinceMidnight(date: Date) {
-  return date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+export function getTimeZoneParts(date: Date, timeZone?: string) {
+  const formatter = getFormatter(timeZone, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const partValue = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  return {
+    year: partValue("year"),
+    month: partValue("month"),
+    day: partValue("day"),
+    hour: partValue("hour"),
+    minute: partValue("minute"),
+    second: partValue("second"),
+  };
+}
+
+export function getDateInTimeZone(date: Date, timeZone: string) {
+  const parts = getTimeZoneParts(date, timeZone);
+  return new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0);
+}
+
+export function formatTime(date: Date, timeZone?: string) {
+  const parts = getTimeZoneParts(date, timeZone);
+  return `${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
+export function formatDate(date: Date, timeZone?: string) {
+  return getFormatter(timeZone, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function hijriCalendarForMethod(method: HijriMethodKey) {
+  if (method === "ummalqura") {
+    return "islamic-umalqura";
+  }
+
+  return "islamic";
+}
+
+export function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function isSameDayInTimeZone(a: Date, b: Date, timeZone: string) {
+  const aParts = getTimeZoneParts(a, timeZone);
+  const bParts = getTimeZoneParts(b, timeZone);
+
+  return (
+    aParts.year === bParts.year &&
+    aParts.month === bParts.month &&
+    aParts.day === bParts.day
+  );
+}
+
+export function formatIslamicDate(
+  date: Date,
+  timeZone: string | undefined,
+  method: HijriMethodKey,
+  adjustmentDays = 0
+) {
+  const adjustedDate = addDays(date, adjustmentDays);
+
+  return new Intl.DateTimeFormat(`en-TN-u-ca-${hijriCalendarForMethod(method)}`, {
+    timeZone,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(adjustedDate);
+}
+
+export function formatDateLabel(date: Date, timeZone?: string) {
+  return getFormatter(timeZone, {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+export function formatDateInputValue(date: Date, timeZone?: string) {
+  const parts = getTimeZoneParts(date, timeZone);
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
+export function parseDateInputValue(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day, 12, 0, 0);
+}
+
+export function formatTimeZoneLabel(timeZone: string) {
+  return timeZone.split("/").pop()?.replaceAll("_", " ") ?? timeZone;
+}
+
+export function formatMinutesAsClock(totalMinutes: number) {
+  const normalized = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  return `${pad(hours)}:${pad(minutes)}`;
+}
+
+export function minutesSinceMidnight(date: Date, timeZone?: string) {
+  const parts = getTimeZoneParts(date, timeZone);
+  return parts.hour * 60 + parts.minute + parts.second / 60;
 }
 
 export function startOfDay(date: Date) {
@@ -16,8 +143,9 @@ export function startOfDay(date: Date) {
   return d;
 }
 
-export function hourValue(date: Date) {
-  return date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+export function hourValue(date: Date, timeZone?: string) {
+  const parts = getTimeZoneParts(date, timeZone);
+  return parts.hour + parts.minute / 60 + parts.second / 3600;
 }
 
 export function minuteDiff(a: Date, b: Date) {
@@ -38,4 +166,11 @@ export function countdown(target: Date, now: Date) {
   const m = Math.floor((diff % 3600) / 60);
   const s = diff % 60;
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+export function formatCoordinate(value: number, type: "lat" | "lng") {
+  const absolute = Math.abs(value).toFixed(4);
+  const suffix =
+    type === "lat" ? (value >= 0 ? "N" : "S") : value >= 0 ? "E" : "W";
+  return `${absolute} deg ${suffix}`;
 }
