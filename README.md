@@ -19,7 +19,7 @@
 
 Install these first:
 
-- Node.js 20+ and npm
+- Node.js 22+ and npm
 - Git
 
 For Android builds:
