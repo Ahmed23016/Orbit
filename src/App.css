@@ -1,6 +1,6 @@
 .orbit-shell {
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
   min-height: 100dvh;
   background:
     radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 30%),
@@ -52,7 +52,7 @@
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(28px);
+  backdrop-filter: blur(18px);
 }
 
 .orbit-safe {
@@ -75,7 +75,7 @@
   box-shadow:
     0 34px 100px rgba(0, 0, 0, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px);
+  backdrop-filter: blur(18px);
 }
 
 .orbit-mobile-summary {
@@ -86,7 +86,20 @@
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(14px);
+}
+
+.orbit-deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 780px;
+}
+
+.orbit-loading-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(9, 14, 24, 0.62)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 @keyframes orbitFloat {
@@ -105,6 +118,11 @@
     background-size: 52px 52px;
   }
 
+  .orbit-shell__glow {
+    animation: none;
+    filter: blur(42px);
+  }
+
   .orbit-shell__glow--one {
     width: 12rem;
     height: 12rem;
@@ -114,5 +132,17 @@
     width: 14rem;
     height: 14rem;
     right: -4rem;
+  }
+
+  .orbit-panel,
+  .orbit-hero,
+  .orbit-mobile-summary {
+    backdrop-filter: blur(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-shell__glow {
+    animation: none;
   }
 }

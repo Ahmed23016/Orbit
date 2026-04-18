@@ -1,4 +1,7 @@
+import { memo } from "react";
+
 import { SectionCard } from "@/components/orbit/SectionCard";
+import { useNow } from "@/hooks/orbit/useNow";
 import { calculationMethods } from "@/lib/orbit/constants";
 import { countdown, formatTime, formatTimeZoneLabel } from "@/lib/orbit/time";
 import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
@@ -10,19 +13,14 @@ type NextPrayer = {
 
 type NextPrayerCardProps = {
   nextPrayer: NextPrayer;
-  now: Date;
   method: MethodKey;
   madhab: MadhabKey;
   timeZone: string;
 };
 
-export function NextPrayerCard({
-  nextPrayer,
-  now,
-  method,
-  madhab,
-  timeZone,
-}: NextPrayerCardProps) {
+function NextPrayerCardInner({ nextPrayer, method, madhab, timeZone }: NextPrayerCardProps) {
+  const now = useNow();
+
   return (
     <SectionCard
       title="Next prayer"
@@ -64,3 +62,5 @@ export function NextPrayerCard({
     </SectionCard>
   );
 }
+
+export const NextPrayerCard = memo(NextPrayerCardInner);

@@ -1,4 +1,7 @@
+import { memo } from "react";
+
 import { SectionCard } from "@/components/orbit/SectionCard";
+import { useNow } from "@/hooks/orbit/useNow";
 import { calculationMethods } from "@/lib/orbit/constants";
 import {
   countdown,
@@ -26,7 +29,6 @@ type DailySummaryCardProps = {
   stats: Stats;
   moon: MoonData;
   nextPrayer: NextPrayer;
-  now: Date;
   method: MethodKey;
   cityLabel: string;
   latitude: number;
@@ -34,17 +36,17 @@ type DailySummaryCardProps = {
   timeZone: string;
 };
 
-export function DailySummaryCard({
+function DailySummaryCardInner({
   stats,
   moon,
   nextPrayer,
-  now,
   method,
   cityLabel,
   latitude,
   longitude,
   timeZone,
 }: DailySummaryCardProps) {
+  const now = useNow();
   const rows = [
     { label: "Solar noon reference", value: stats.solarNoon },
     { label: "Total night duration", value: formatDuration(stats.nightMinutes) },
@@ -80,3 +82,5 @@ export function DailySummaryCard({
     </SectionCard>
   );
 }
+
+export const DailySummaryCard = memo(DailySummaryCardInner);

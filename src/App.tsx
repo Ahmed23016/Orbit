@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronDown, Clock3, Moon, Sparkles, Sunrise, Sunset } from "lucide-react";
 
 import "./App.css";
@@ -8,8 +8,6 @@ import { NextPrayerCard } from "@/components/orbit/NextPrayerCard";
 import { OrbitControls } from "@/components/orbit/OrbitControls";
 import { OrbitHero } from "@/components/orbit/OrbitHero";
 import { PrayerGrid } from "@/components/orbit/PrayerGrid";
-import { PrayerSpacingCard } from "@/components/orbit/PrayerSpacingCard";
-import { SolarChartCard } from "@/components/orbit/SolarChartCard";
 import { StatsGrid } from "@/components/orbit/StatsGrid";
 
 import { useNow } from "@/hooks/orbit/useNow";
@@ -36,6 +34,18 @@ import type {
   MethodKey,
   PresetKey,
 } from "@/lib/orbit/types";
+
+const SolarChartCard = lazy(() =>
+  import("@/components/orbit/SolarChartCard").then((module) => ({
+    default: module.SolarChartCard,
+  }))
+);
+
+const PrayerSpacingCard = lazy(() =>
+  import("@/components/orbit/PrayerSpacingCard").then((module) => ({
+    default: module.PrayerSpacingCard,
+  }))
+);
 
 const HIJRI_METHOD_STORAGE_KEY = "orbit:hijri-method";
 const HIJRI_ADJUSTMENT_STORAGE_KEY = "orbit:hijri-adjustment";
@@ -75,7 +85,7 @@ export default function App() {
     getDateInTimeZone(new Date(), locationPresets.amsterdam.timeZone)
   );
 
-  const now = useNow();
+  const now = useNow(60000);
   const isMobile = useIsMobile();
   const [showSolarDetails, setShowSolarDetails] = useState(false);
 
@@ -192,7 +202,6 @@ export default function App() {
           <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <NextPrayerCard
               nextPrayer={nextPrayer}
-              now={now}
               method={method}
               madhab={madhab}
               timeZone={coords.timeZone}
@@ -279,7 +288,7 @@ export default function App() {
             </div>
           ) : (
             <details
-              className="rounded-[30px] border border-white/10 bg-slate-950/50 p-4 backdrop-blur-xl"
+              className="orbit-deferred-section rounded-[30px] border border-white/10 bg-slate-950/50 p-4 backdrop-blur-xl"
               open={showSolarDetails}
               onToggle={(event) =>
                 setShowSolarDetails((event.target as HTMLDetailsElement).open)
@@ -296,15 +305,25 @@ export default function App() {
               </summary>
 
               <div className="mt-4 grid gap-4">
-                <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-                  <SolarChartCard
-                    chartData={chartData}
-                    prayerMarkers={prayerMarkers}
-                    now={now}
-                    timeZone={coords.timeZone}
-                  />
-                  <PrayerSpacingCard spacingData={spacingData} />
-                </div>
+                {showSolarDetails ? (
+                  <Suspense
+                    fallback={
+                      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+                        <div className="orbit-loading-panel h-[420px] rounded-[30px]" />
+                        <div className="orbit-loading-panel h-[320px] rounded-[30px]" />
+                      </div>
+                    }
+                  >
+                    <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+                      <SolarChartCard
+                        chartData={chartData}
+                        prayerMarkers={prayerMarkers}
+                        timeZone={coords.timeZone}
+                      />
+                      <PrayerSpacingCard spacingData={spacingData} />
+                    </div>
+                  </Suspense>
+                ) : null}
 
                 <StatsGrid stats={stats} moon={moon} />
               </div>
@@ -315,7 +334,6 @@ export default function App() {
             stats={stats}
             moon={moon}
             nextPrayer={nextPrayer}
-            now={now}
             method={method}
             cityLabel={coords.label}
             latitude={coords.latitude}

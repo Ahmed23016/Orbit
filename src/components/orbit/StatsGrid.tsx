@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Compass, CornerDownRight, X } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +42,7 @@ function StatCard({
   );
 }
 
-export function StatsGrid({ stats, moon }: StatsGridProps) {
+function StatsGridInner({ stats, moon }: StatsGridProps) {
   const [showCompass, setShowCompass] = useState(false);
 
   return (
@@ -195,3 +195,5 @@ export function StatsGrid({ stats, moon }: StatsGridProps) {
     </>
   );
 }
+
+export const StatsGrid = memo(StatsGridInner);

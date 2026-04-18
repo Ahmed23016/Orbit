@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import {
   Area,
   CartesianGrid,
@@ -11,6 +13,7 @@ import {
 } from "recharts";
 
 import { SectionCard } from "@/components/orbit/SectionCard";
+import { useNow } from "@/hooks/orbit/useNow";
 import { hourValue, minutesSinceMidnight, pad } from "@/lib/orbit/time";
 import type { PrayerMarker } from "@/lib/orbit/types";
 
@@ -23,16 +26,12 @@ type ChartRow = {
 type SolarChartCardProps = {
   chartData: ChartRow[];
   prayerMarkers: PrayerMarker[];
-  now: Date;
   timeZone: string;
 };
 
-export function SolarChartCard({
-  chartData,
-  prayerMarkers,
-  now,
-  timeZone,
-}: SolarChartCardProps) {
+function SolarChartCardInner({ chartData, prayerMarkers, timeZone }: SolarChartCardProps) {
+  const now = useNow(60000);
+
   return (
     <SectionCard
       title="Solar altitude and prayer timeline"
@@ -111,3 +110,5 @@ export function SolarChartCard({
     </SectionCard>
   );
 }
+
+export const SolarChartCard = memo(SolarChartCardInner);

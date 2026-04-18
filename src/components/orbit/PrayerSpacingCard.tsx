@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import {
   Area,
   AreaChart,
@@ -19,7 +21,7 @@ type PrayerSpacingCardProps = {
   spacingData: SpacingRow[];
 };
 
-export function PrayerSpacingCard({ spacingData }: PrayerSpacingCardProps) {
+function PrayerSpacingCardInner({ spacingData }: PrayerSpacingCardProps) {
   return (
     <SectionCard
       title="Prayer spacing"
@@ -57,3 +59,5 @@ export function PrayerSpacingCard({ spacingData }: PrayerSpacingCardProps) {
     </SectionCard>
   );
 }
+
+export const PrayerSpacingCard = memo(PrayerSpacingCardInner);
