@@ -108,6 +108,12 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/orbit-upload-keystore.jks
 
+      - name: Verify Android Keystore
+        working-directory: android
+        shell: bash
+        run: |
+          keytool -list -v -keystore orbit-upload-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias orbit-upload > /dev/null
+
       - name: Sync Capacitor Android
         run: npx cap sync android
 
@@ -121,7 +127,7 @@ jobs:
         env:
           ORBIT_UPLOAD_STORE_FILE: orbit-upload-keystore.jks
           ORBIT_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ORBIT_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORBIT_UPLOAD_KEY_ALIAS: orbit-upload
           ORBIT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
 
       - name: Upload Release APK Artifact

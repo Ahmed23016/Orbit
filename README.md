@@ -331,7 +331,6 @@ android/signing-secrets.local.txt
 
 - `ANDROID_KEYSTORE_BASE64`
 - `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
 These are also already present in:
@@ -339,6 +338,8 @@ These are also already present in:
 ```bash
 android/signing-secrets.local.txt
 ```
+
+The workflow now uses the generated alias `orbit-upload` directly, so you do not need to add `ANDROID_KEY_ALIAS` in GitHub anymore.
 
 ## What The Release Workflow Produces
 
