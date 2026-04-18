@@ -52,7 +52,7 @@ jobs:
           ORBIT_UPLOAD_STORE_FILE: orbit-upload-keystore.jks
           ORBIT_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ORBIT_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ORBIT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ORBIT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
 
       - name: Upload Android Release APK
         uses: actions/upload-artifact@v4
