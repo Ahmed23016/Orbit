@@ -2,17 +2,6 @@ name: Android Release
 
 on:
   workflow_dispatch:
-    inputs:
-      upload_to_play_store:
-        description: Upload the Android AAB to Google Play
-        required: false
-        default: false
-        type: boolean
-      play_track:
-        description: Google Play track
-        required: false
-        default: internal
-        type: string
   push:
     tags:
       - "v*"
@@ -69,21 +58,3 @@ jobs:
         with:
           name: orbit-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
-
-      - name: Write Google Play Service Account
-        if: ${{ github.event_name == 'push' || inputs.upload_to_play_store }}
-        shell: bash
-        run: |
-          if [ -n "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}" ]; then
-            echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/google-play-service-account.json
-          fi
-
-      - name: Upload To Google Play
-        if: ${{ (github.event_name == 'push' || inputs.upload_to_play_store) && secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJson: android/google-play-service-account.json
-          packageName: com.orbit.prayertimes
-          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
-          track: ${{ github.event_name == 'push' && 'internal' || inputs.play_track }}
-          status: completed

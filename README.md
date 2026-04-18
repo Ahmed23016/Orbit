@@ -340,20 +340,12 @@ These are also already present in:
 android/signing-secrets.local.txt
 ```
 
-### Optional Google Play Upload
-
-- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
-
 ## What The Release Workflow Produces
 
 Android:
 
 - signed release APK artifact
 - signed release AAB artifact
-
-If the Play upload toggle is enabled and the Google Play secret exists:
-
-- Android AAB upload to Google Play
 
 ## Useful Scripts
 
