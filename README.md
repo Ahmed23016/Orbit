@@ -334,6 +334,7 @@ android/signing-secrets.local.txt
 Android:
 
 - release APK artifact
+- APK attached to the GitHub Release assets for tagged releases
 
 Web:
 
