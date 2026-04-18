@@ -1,9 +1,5 @@
 # Orbit
 
-Orbit is a prayer-times app built with React, Vite, Tailwind, and Capacitor.
-
-It supports:
-
 - web deployment on Vercel
 - Android and iPhone builds through Capacitor
 - a phone-first UI that simplifies heavier views on smaller screens
