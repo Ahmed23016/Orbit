@@ -1,6 +1,7 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
+  LoaderCircle,
   LocateFixed,
   MapPin,
   Search,
@@ -49,6 +50,7 @@ type OrbitControlsProps = {
   onPresetChange: (value: PresetKey) => void;
   onLocateMe: () => void;
   onCoordsChange: (value: LocationPreset) => void;
+  isLocating?: boolean;
 };
 
 type ManualCoordinateFormProps = {
@@ -62,8 +64,8 @@ function ManualCoordinateForm({
   onCoordsChange,
   onErrorChange,
 }: ManualCoordinateFormProps) {
-  const [latInput, setLatInput] = useState(currentLocation.latitude.toFixed(4));
-  const [lngInput, setLngInput] = useState(currentLocation.longitude.toFixed(4));
+  const [latInput, setLatInput] = useState(String(currentLocation.latitude));
+  const [lngInput, setLngInput] = useState(String(currentLocation.longitude));
   const [isResolving, setIsResolving] = useState(false);
 
   const applyManualCoordinates = async () => {
@@ -85,7 +87,7 @@ function ManualCoordinateForm({
       onErrorChange("");
       const timeZone = await resolveTimeZone(latitude, longitude);
       onCoordsChange({
-        label: `Custom ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`,
+        label: "Custom coordinates",
         latitude,
         longitude,
         timeZone,
@@ -144,6 +146,7 @@ export function OrbitControls({
   onPresetChange,
   onLocateMe,
   onCoordsChange,
+  isLocating = false,
 }: OrbitControlsProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -443,10 +446,15 @@ export function OrbitControls({
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             onClick={onLocateMe}
+            disabled={isLocating}
             className="h-11 flex-1 rounded-2xl bg-cyan-300 text-slate-950 shadow-none hover:bg-cyan-200"
           >
-            <LocateFixed className="mr-2 h-4 w-4" />
-            Use my location
+            {isLocating ? (
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <LocateFixed className="mr-2 h-4 w-4" />
+            )}
+            {isLocating ? "Getting location..." : "Use my location"}
           </Button>
 
           <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/45 px-3 py-2 text-sm text-slate-300">
@@ -455,6 +463,13 @@ export function OrbitControls({
             <span className="font-medium text-white">{currentLocation.label}</span>
           </div>
         </div>
+
+        {isLocating ? (
+          <div className="flex items-center gap-2 text-sm text-cyan-200">
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+            Finding your coordinates and resolving the local time zone...
+          </div>
+        ) : null}
 
         {searchError ? <div className="text-sm text-rose-300">{searchError}</div> : null}
       </div>

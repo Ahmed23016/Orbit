@@ -1,5 +1,14 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, Clock3, Moon, Sparkles, Sunrise, Sunset } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronDown,
+  Clock3,
+  LoaderCircle,
+  Moon,
+  Sparkles,
+  Sunrise,
+  Sunset,
+} from "lucide-react";
 
 import "./App.css";
 
@@ -55,6 +64,7 @@ export default function App() {
   const now = useNow(60000);
   const isMobile = useIsMobile();
   const [showSolarDetails, setShowSolarDetails] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(() =>
     getDateInTimeZone(new Date(), coords.timeZone)
   );
@@ -83,6 +93,8 @@ export default function App() {
   const locateMe = useCallback(() => {
     if (!navigator.geolocation) return;
 
+    setIsLocating(true);
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
@@ -97,7 +109,7 @@ export default function App() {
             timeZone,
           };
           void updateSettings({ selectedLocation: "custom", customCoords });
-          setSelectedDate(getDateInTimeZone(now, timeZone));
+          setSelectedDate(getDateInTimeZone(new Date(), timeZone));
         } catch {
           const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           const customCoords: LocationPreset = {
@@ -107,21 +119,30 @@ export default function App() {
             timeZone,
           };
           void updateSettings({ selectedLocation: "custom", customCoords });
-          setSelectedDate(getDateInTimeZone(now, timeZone));
+          setSelectedDate(getDateInTimeZone(new Date(), timeZone));
+        } finally {
+          setIsLocating(false);
         }
       },
       () => {
+        setIsLocating(false);
         alert("Could not get your location.");
       }
     );
-  }, [now, updateSettings]);
+  }, [updateSettings]);
 
   useEffect(() => {
     if (!isReady || !settings.automaticLocation) {
       return;
     }
 
-    locateMe();
+    const timeoutId = window.setTimeout(() => {
+      locateMe();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [isReady, settings.automaticLocation, locateMe]);
 
   const handlePresetChange = (key: PresetKey) => {
@@ -152,7 +173,15 @@ export default function App() {
     return (
       <div className="orbit-shell min-h-screen w-full text-slate-100">
         <div className="orbit-safe relative w-full py-5 md:px-6 lg:px-8">
-          <div className="orbit-loading-panel h-48 rounded-[30px]" />
+          <div className="orbit-loading-panel flex h-48 items-center justify-center rounded-[30px]">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <LoaderCircle className="h-8 w-8 animate-spin text-cyan-300" />
+              <div className="text-lg font-medium text-white">Loading Orbit</div>
+              <div className="text-sm text-slate-400">
+                Restoring your settings and preparing today&apos;s prayer data.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -198,6 +227,7 @@ export default function App() {
               onPresetChange={handlePresetChange}
               onLocateMe={locateMe}
               onCoordsChange={handleCoordsChange}
+              isLocating={isLocating}
             />
           </div>
 

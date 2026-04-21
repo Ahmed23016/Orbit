@@ -1,5 +1,7 @@
 import type { HijriMethodKey } from "./types";
 
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
 export function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -8,10 +10,19 @@ function getFormatter(
   timeZone: string | undefined,
   options: Intl.DateTimeFormatOptions
 ) {
-  return new Intl.DateTimeFormat("en-CA", {
+  const cacheKey = `en-CA|${timeZone ?? "local"}|${JSON.stringify(options)}`;
+  const cached = formatterCache.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     ...options,
   });
+  formatterCache.set(cacheKey, formatter);
+  return formatter;
 }
 
 export function getTimeZoneParts(date: Date, timeZone?: string) {
@@ -90,13 +101,21 @@ export function formatIslamicDate(
   adjustmentDays = 0
 ) {
   const adjustedDate = addDays(date, adjustmentDays);
+  const locale = `en-TN-u-ca-${hijriCalendarForMethod(method)}`;
+  const cacheKey = `${locale}|${timeZone ?? "local"}|hijri-long`;
+  let formatter = formatterCache.get(cacheKey);
 
-  return new Intl.DateTimeFormat(`en-TN-u-ca-${hijriCalendarForMethod(method)}`, {
-    timeZone,
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(adjustedDate);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      timeZone,
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    formatterCache.set(cacheKey, formatter);
+  }
+
+  return formatter.format(adjustedDate);
 }
 
 export function formatDateLabel(date: Date, timeZone?: string) {
