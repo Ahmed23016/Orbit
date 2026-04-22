@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { calculationMethods, getMethodDetails, locationPresets } from "@/lib/orbit/constants";
 import { resolveTimeZone } from "@/lib/orbit/location";
-import { formatTimeZoneLabel } from "@/lib/orbit/time";
+import { formatLocationUpdatedAt, formatTimeZoneLabel } from "@/lib/orbit/time";
 import type {
   HijriMethodKey,
   LocationPreset,
@@ -51,6 +51,10 @@ type OrbitControlsProps = {
   onLocateMe: () => void;
   onCoordsChange: (value: LocationPreset) => void;
   isLocating?: boolean;
+  isResolvingLocationTimeZone?: boolean;
+  locationStatusMessage?: string;
+  locationErrorMessage?: string;
+  lastCurrentLocationAt?: string | null;
 };
 
 type ManualCoordinateFormProps = {
@@ -147,6 +151,10 @@ export function OrbitControls({
   onLocateMe,
   onCoordsChange,
   isLocating = false,
+  isResolvingLocationTimeZone = false,
+  locationStatusMessage = "",
+  locationErrorMessage = "",
+  lastCurrentLocationAt = null,
 }: OrbitControlsProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -464,7 +472,26 @@ export function OrbitControls({
           </div>
         </div>
 
-        {isLocating ? (
+        {currentLocation.label === "Current location" && lastCurrentLocationAt ? (
+          <div className="text-sm text-slate-400">
+            {formatLocationUpdatedAt(lastCurrentLocationAt)}
+          </div>
+        ) : null}
+
+        {locationStatusMessage ? (
+          <div className="flex items-center gap-2 text-sm text-cyan-200">
+            {isLocating || isResolvingLocationTimeZone ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : null}
+            {locationStatusMessage}
+          </div>
+        ) : null}
+
+        {locationErrorMessage ? (
+          <div className="text-sm text-rose-300">{locationErrorMessage}</div>
+        ) : null}
+
+        {isLocating && !locationStatusMessage ? (
           <div className="flex items-center gap-2 text-sm text-cyan-200">
             <LoaderCircle className="h-4 w-4 animate-spin" />
             Finding your coordinates and resolving the local time zone...

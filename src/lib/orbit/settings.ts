@@ -21,6 +21,7 @@ export type NotificationSettings = {
 export type AppSettings = {
   selectedLocation: LocationSelectionKey;
   customCoords: LocationPreset | null;
+  lastCurrentLocationAt: string | null;
   useLocationAsDefault: boolean;
   automaticLocation: boolean;
   prayerMethod: MethodKey;
@@ -44,6 +45,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 export const DEFAULT_SETTINGS: AppSettings = {
   selectedLocation: "amsterdam",
   customCoords: null,
+  lastCurrentLocationAt: null,
   useLocationAsDefault: false,
   automaticLocation: false,
   prayerMethod: "mwl",

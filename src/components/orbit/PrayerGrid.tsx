@@ -9,8 +9,7 @@ type PrayerGridItem = {
 
 type PrayerGridProps = {
   items: PrayerGridItem[];
-};
-
+}; 
 export function PrayerGrid({ items }: PrayerGridProps) {
   return (
     <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">

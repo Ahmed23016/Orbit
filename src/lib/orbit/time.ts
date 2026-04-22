@@ -193,3 +193,32 @@ export function formatCoordinate(value: number, type: "lat" | "lng") {
     type === "lat" ? (value >= 0 ? "N" : "S") : value >= 0 ? "E" : "W";
   return `${absolute} deg ${suffix}`;
 }
+
+export function formatLocationUpdatedAt(value: string | null, now = new Date()) {
+  if (!value) {
+    return "";
+  }
+
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    return "";
+  }
+
+  const diffMs = now.getTime() - timestamp.getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return "Updated just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `Updated ${diffMinutes} min ago`;
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `Updated ${diffHours} hr ago`;
+  }
+
+  return `Updated ${formatDate(timestamp)}`;
+}

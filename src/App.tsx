@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   ChevronDown,
@@ -25,7 +25,12 @@ import { useOrbitData } from "@/hooks/orbit/useOrbitData";
 import { useSettings } from "@/hooks/useSettings";
 
 import { locationPresets } from "@/lib/orbit/constants";
-import { resolveTimeZone } from "@/lib/orbit/location";
+import {
+  getCurrentPosition,
+  getLocationErrorMessage,
+  getDeviceTimeZone,
+  resolveTimeZone,
+} from "@/lib/orbit/location";
 import {
   formatDate,
   formatDateInputValue,
@@ -65,9 +70,13 @@ export default function App() {
   const isMobile = useIsMobile();
   const [showSolarDetails, setShowSolarDetails] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isResolvingLocationTimeZone, setIsResolvingLocationTimeZone] = useState(false);
+  const [locationStatusMessage, setLocationStatusMessage] = useState("");
+  const [locationErrorMessage, setLocationErrorMessage] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date>(() =>
     getDateInTimeZone(new Date(), coords.timeZone)
   );
+  const locatingRef = useRef(false);
 
   const { prayers, moon, nextPrayer, prayerMarkers, chartData, stats, spacingData, currentDay } =
     useOrbitData(
@@ -90,46 +99,70 @@ export default function App() {
     return shouldRollAtMaghrib ? addDays(currentDay, 1) : currentDay;
   }, [settings.hijriMethod, currentDay, now, coords.timeZone, prayers.maghrib]);
 
-  const locateMe = useCallback(() => {
-    if (!navigator.geolocation) return;
+  const applyCurrentLocation = useCallback(
+    (location: LocationPreset, recordedAt: string) => {
+      void updateSettings({
+        selectedLocation: "custom",
+        customCoords: location,
+        lastCurrentLocationAt: recordedAt,
+      });
+      setSelectedDate(getDateInTimeZone(new Date(), location.timeZone));
+    },
+    [updateSettings]
+  );
 
+  const locateMe = useCallback(async () => {
+    if (locatingRef.current) {
+      return;
+    }
+
+    locatingRef.current = true;
+    setLocationErrorMessage("");
+    setLocationStatusMessage("Requesting your current location...");
     setIsLocating(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const timeZone =
-            (await resolveTimeZone(pos.coords.latitude, pos.coords.longitude)) ||
-            Intl.DateTimeFormat().resolvedOptions().timeZone;
+    try {
+      const position = await getCurrentPosition();
+      const fallbackTimeZone = getDeviceTimeZone();
+      const recordedAt = new Date(position.timestamp || Date.now()).toISOString();
+      const immediateLocation: LocationPreset = {
+        latitude: position.latitude,
+        longitude: position.longitude,
+        label: "Current location",
+        timeZone: fallbackTimeZone,
+      };
 
-          const customCoords: LocationPreset = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            label: "Current location",
-            timeZone,
-          };
-          void updateSettings({ selectedLocation: "custom", customCoords });
-          setSelectedDate(getDateInTimeZone(new Date(), timeZone));
-        } catch {
-          const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          const customCoords: LocationPreset = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            label: "Current location",
-            timeZone,
-          };
-          void updateSettings({ selectedLocation: "custom", customCoords });
-          setSelectedDate(getDateInTimeZone(new Date(), timeZone));
-        } finally {
-          setIsLocating(false);
+      applyCurrentLocation(immediateLocation, recordedAt);
+      locatingRef.current = false;
+      setIsLocating(false);
+      setLocationStatusMessage("Current location applied. Verifying your local time zone...");
+      setIsResolvingLocationTimeZone(true);
+
+      try {
+        const resolvedTimeZone = await resolveTimeZone(position.latitude, position.longitude);
+
+        if (resolvedTimeZone !== fallbackTimeZone) {
+          applyCurrentLocation({
+            ...immediateLocation,
+            timeZone: resolvedTimeZone,
+          }, recordedAt);
         }
-      },
-      () => {
-        setIsLocating(false);
-        alert("Could not get your location.");
+
+        setLocationStatusMessage("Current location updated.");
+      } catch {
+        setLocationStatusMessage("Current location updated using your device time zone.");
+      } finally {
+        setIsResolvingLocationTimeZone(false);
+        window.setTimeout(() => setLocationStatusMessage(""), 2400);
       }
-    );
-  }, [updateSettings]);
+    } catch (error) {
+      locatingRef.current = false;
+      setIsLocating(false);
+      setIsResolvingLocationTimeZone(false);
+      setLocationErrorMessage(getLocationErrorMessage(error));
+      setLocationStatusMessage("");
+    }
+  }, [applyCurrentLocation]);
 
   useEffect(() => {
     if (!isReady || !settings.automaticLocation) {
@@ -146,11 +179,15 @@ export default function App() {
   }, [isReady, settings.automaticLocation, locateMe]);
 
   const handlePresetChange = (key: PresetKey) => {
+    setLocationErrorMessage("");
+    setLocationStatusMessage("");
     void updateSettings({ selectedLocation: key, customCoords: null });
     setSelectedDate(getDateInTimeZone(now, locationPresets[key].timeZone));
   };
 
   const handleCoordsChange = (location: LocationPreset) => {
+    setLocationErrorMessage("");
+    setLocationStatusMessage("");
     void updateSettings({ selectedLocation: "custom", customCoords: location });
     setSelectedDate(getDateInTimeZone(now, location.timeZone));
   };
@@ -228,6 +265,10 @@ export default function App() {
               onLocateMe={locateMe}
               onCoordsChange={handleCoordsChange}
               isLocating={isLocating}
+              isResolvingLocationTimeZone={isResolvingLocationTimeZone}
+              locationStatusMessage={locationStatusMessage}
+              locationErrorMessage={locationErrorMessage}
+              lastCurrentLocationAt={settings.lastCurrentLocationAt}
             />
           </div>
 
