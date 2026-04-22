@@ -1,6 +1,29 @@
+import {
+  CalendarDate,
+  IslamicCivilCalendar,
+  IslamicUmalquraCalendar,
+  toCalendar,
+} from "@internationalized/date";
+
 import type { HijriMethodKey } from "./types";
 
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
+const islamicCivilCalendar = new IslamicCivilCalendar();
+const islamicUmalquraCalendar = new IslamicUmalquraCalendar();
+const hijriMonthNames = [
+  "Muharram",
+  "Safar",
+  "Rabiʻ al-Awwal",
+  "Rabiʻ al-Thani",
+  "Jumada al-Ula",
+  "Jumada al-Akhirah",
+  "Rajab",
+  "Shaʻban",
+  "Ramadan",
+  "Shawwal",
+  "Dhuʻl-Qiʻdah",
+  "Dhuʻl-Hijjah",
+] as const;
 
 export function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -71,10 +94,10 @@ export function formatDate(date: Date, timeZone?: string) {
 
 function hijriCalendarForMethod(method: HijriMethodKey) {
   if (method === "ummalqura") {
-    return "islamic-umalqura";
+    return islamicUmalquraCalendar;
   }
 
-  return "islamic";
+  return islamicCivilCalendar;
 }
 
 export function addDays(date: Date, days: number) {
@@ -101,21 +124,12 @@ export function formatIslamicDate(
   adjustmentDays = 0
 ) {
   const adjustedDate = addDays(date, adjustmentDays);
-  const locale = `en-TN-u-ca-${hijriCalendarForMethod(method)}`;
-  const cacheKey = `${locale}|${timeZone ?? "local"}|hijri-long`;
-  let formatter = formatterCache.get(cacheKey);
+  const parts = getTimeZoneParts(adjustedDate, timeZone);
+  const gregorianDate = new CalendarDate(parts.year, parts.month, parts.day);
+  const hijriDate = toCalendar(gregorianDate, hijriCalendarForMethod(method));
+  const monthName = hijriMonthNames[hijriDate.month - 1] ?? `Month ${hijriDate.month}`;
 
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat(locale, {
-      timeZone,
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    formatterCache.set(cacheKey, formatter);
-  }
-
-  return formatter.format(adjustedDate);
+  return `${monthName} ${hijriDate.day}, ${hijriDate.year} AH`;
 }
 
 export function formatDateLabel(date: Date, timeZone?: string) {
