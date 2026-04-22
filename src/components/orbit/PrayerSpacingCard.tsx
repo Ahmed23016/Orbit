@@ -23,10 +23,7 @@ type PrayerSpacingCardProps = {
 
 function PrayerSpacingCardInner({ spacingData }: PrayerSpacingCardProps) {
   return (
-    <SectionCard
-      title="Prayer spacing"
-      description="How much time sits between the prayers of the day."
-    >
+    <SectionCard title="Spacing">
       <div className="h-[320px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart

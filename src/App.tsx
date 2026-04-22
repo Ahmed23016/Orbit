@@ -1,6 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CalendarDays,
   ChevronDown,
   Clock3,
   LoaderCircle,
@@ -18,8 +17,8 @@ import { OrbitControls } from "@/components/orbit/OrbitControls";
 import { OrbitHero } from "@/components/orbit/OrbitHero";
 import { PrayerGrid } from "@/components/orbit/PrayerGrid";
 import { StatsGrid } from "@/components/orbit/StatsGrid";
+import { ViewingDayCard } from "@/components/orbit/ViewingDayCard";
 
-import { useNow } from "@/hooks/orbit/useNow";
 import { useIsMobile } from "@/hooks/orbit/useIsMobile";
 import { useOrbitData } from "@/hooks/orbit/useOrbitData";
 import { useSettings } from "@/hooks/useSettings";
@@ -32,14 +31,8 @@ import {
   resolveTimeZone,
 } from "@/lib/orbit/location";
 import {
-  formatDate,
-  formatDateInputValue,
-  formatIslamicDate,
   formatTime,
   getDateInTimeZone,
-  isSameDayInTimeZone,
-  addDays,
-  parseDateInputValue,
 } from "@/lib/orbit/time";
 import type { LocationPreset, PresetKey } from "@/lib/orbit/types";
 
@@ -56,7 +49,14 @@ const PrayerSpacingCard = lazy(() =>
 );
 
 export default function App() {
-  const { settings, updateSettings, isReady } = useSettings();
+  const { settings, updateSettings, resetSettings, isReady } = useSettings();
+  const [prefersDark, setPrefersDark] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
 
   const coords = useMemo(
     () =>
@@ -66,7 +66,6 @@ export default function App() {
     [settings.selectedLocation, settings.customCoords]
   );
 
-  const now = useNow(60000);
   const isMobile = useIsMobile();
   const [showSolarDetails, setShowSolarDetails] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -77,27 +76,33 @@ export default function App() {
     getDateInTimeZone(new Date(), coords.timeZone)
   );
   const locatingRef = useRef(false);
+  const resolvedTheme =
+    settings.theme === "system" ? (prefersDark ? "dark" : "light") : settings.theme;
 
-  const { prayers, moon, nextPrayer, prayerMarkers, chartData, stats, spacingData, currentDay } =
+  const { prayers, moon, prayerMarkers, chartData, stats, spacingData, currentDay } =
     useOrbitData(
-      now,
       selectedDate,
       coords.latitude,
       coords.longitude,
       coords.timeZone,
       settings.prayerMethod,
-      settings.madhab
+      settings.madhab,
+      settings.prayerAdjustments
     );
 
-  const hijriSourceDate = useMemo(() => {
-    const todayInLocation = getDateInTimeZone(now, coords.timeZone);
-    const shouldRollAtMaghrib =
-      settings.hijriMethod === "local" &&
-      isSameDayInTimeZone(currentDay, todayInLocation, coords.timeZone) &&
-      now.getTime() >= prayers.maghrib.getTime();
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
 
-    return shouldRollAtMaghrib ? addDays(currentDay, 1) : currentDay;
-  }, [settings.hijriMethod, currentDay, now, coords.timeZone, prayers.maghrib]);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => setPrefersDark(media.matches);
+
+    handleChange();
+    media.addEventListener("change", handleChange);
+
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
 
   const applyCurrentLocation = useCallback(
     (location: LocationPreset, recordedAt: string) => {
@@ -135,7 +140,7 @@ export default function App() {
       applyCurrentLocation(immediateLocation, recordedAt);
       locatingRef.current = false;
       setIsLocating(false);
-      setLocationStatusMessage("Current location applied. Verifying your local time zone...");
+      setLocationStatusMessage("Verifying time zone...");
       setIsResolvingLocationTimeZone(true);
 
       try {
@@ -148,9 +153,9 @@ export default function App() {
           }, recordedAt);
         }
 
-        setLocationStatusMessage("Current location updated.");
+        setLocationStatusMessage("Updated.");
       } catch {
-        setLocationStatusMessage("Current location updated using your device time zone.");
+        setLocationStatusMessage("Updated with device time zone.");
       } finally {
         setIsResolvingLocationTimeZone(false);
         window.setTimeout(() => setLocationStatusMessage(""), 2400);
@@ -182,14 +187,14 @@ export default function App() {
     setLocationErrorMessage("");
     setLocationStatusMessage("");
     void updateSettings({ selectedLocation: key, customCoords: null });
-    setSelectedDate(getDateInTimeZone(now, locationPresets[key].timeZone));
+    setSelectedDate(getDateInTimeZone(new Date(), locationPresets[key].timeZone));
   };
 
   const handleCoordsChange = (location: LocationPreset) => {
     setLocationErrorMessage("");
     setLocationStatusMessage("");
     void updateSettings({ selectedLocation: "custom", customCoords: location });
-    setSelectedDate(getDateInTimeZone(now, location.timeZone));
+    setSelectedDate(getDateInTimeZone(new Date(), location.timeZone));
   };
 
   const prayerItems = useMemo(
@@ -200,10 +205,10 @@ export default function App() {
       { title: "Asr", value: formatTime(prayers.asr, coords.timeZone), icon: Clock3 },
       { title: "Maghrib", value: formatTime(prayers.maghrib, coords.timeZone), icon: Sunset },
       { title: "Isha", value: formatTime(prayers.isha, coords.timeZone), icon: Clock3 },
-      { title: "Moon phase", value: moon.phaseName, icon: Moon },
-      { title: "Moon light", value: `${moon.illumination}%`, icon: Sparkles },
+      { title: isMobile ? "Phase" : "Moon phase", value: moon.phaseName, icon: Moon },
+      { title: isMobile ? "Light" : "Moon light", value: `${moon.illumination}%`, icon: Sparkles },
     ],
-    [prayers, moon, coords.timeZone]
+    [prayers, moon, coords.timeZone, isMobile]
   );
 
   if (!isReady) {
@@ -225,7 +230,9 @@ export default function App() {
   }
 
   return (
-    <div className="orbit-shell min-h-screen w-full text-slate-100">
+    <div
+      className={`orbit-shell orbit-shell--${resolvedTheme} min-h-screen w-full text-slate-100`}
+    >
       <div className="orbit-shell__glow orbit-shell__glow--one" />
       <div className="orbit-shell__glow orbit-shell__glow--two" />
       <div className="orbit-shell__grid" />
@@ -236,104 +243,82 @@ export default function App() {
             label={coords.label}
             latitude={coords.latitude}
             longitude={coords.longitude}
-            now={now}
             timeZone={coords.timeZone}
+            compact={isMobile}
           />
 
           <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <NextPrayerCard
-              nextPrayer={nextPrayer}
+              latitude={coords.latitude}
+              longitude={coords.longitude}
               method={settings.prayerMethod}
               madhab={settings.madhab}
               timeZone={coords.timeZone}
+              compact={isMobile}
+              prayerAdjustments={settings.prayerAdjustments}
             />
-
-            <OrbitControls
-              method={settings.prayerMethod}
-              madhab={settings.madhab}
+            <ViewingDayCard
+              currentDay={currentDay}
+              selectedDate={selectedDate}
+              timeZone={coords.timeZone}
               hijriMethod={settings.hijriMethod}
               hijriAdjustment={settings.hijriAdjustment}
-              selectedPreset={settings.selectedLocation}
-              currentLocation={coords}
-              onMethodChange={(prayerMethod) => void updateSettings({ prayerMethod })}
-              onMadhabChange={(madhab) => void updateSettings({ madhab })}
-              onHijriMethodChange={(hijriMethod) => void updateSettings({ hijriMethod })}
-              onHijriAdjustmentChange={(hijriAdjustment) =>
-                void updateSettings({ hijriAdjustment })
-              }
-              onPresetChange={handlePresetChange}
-              onLocateMe={locateMe}
-              onCoordsChange={handleCoordsChange}
-              isLocating={isLocating}
-              isResolvingLocationTimeZone={isResolvingLocationTimeZone}
-              locationStatusMessage={locationStatusMessage}
-              locationErrorMessage={locationErrorMessage}
-              lastCurrentLocationAt={settings.lastCurrentLocationAt}
+              maghrib={prayers.maghrib}
+              onSelectedDateChange={setSelectedDate}
+              compact={isMobile}
             />
           </div>
 
-          <div className="rounded-[30px] border border-white/10 bg-slate-950/55 p-4 backdrop-blur-xl">
-            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-              <div>
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.34em] text-amber-100/70">
-                  <CalendarDays className="h-4 w-4" />
-                  Viewing day
-                </div>
-                <div className="mt-2 text-xl font-semibold text-white">
-                  {formatDate(currentDay, coords.timeZone)}
-                </div>
-                <div className="mt-1 text-sm font-medium text-amber-200">
-                  Hijri:{" "}
-                  {formatIslamicDate(
-                    hijriSourceDate,
-                    coords.timeZone,
-                    settings.hijriMethod,
-                    settings.hijriAdjustment
-                  )}
-                </div>
-                <div className="mt-1 text-sm text-slate-400">
-                  Choose any day and Orbit will show that day's prayer times. Default is today.
-                  In local mode, the Hijri date rolls after Maghrib.
-                </div>
-              </div>
+          <PrayerGrid items={prayerItems} compact={isMobile} />
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <input
-                  type="date"
-                  value={formatDateInputValue(selectedDate, coords.timeZone)}
-                  onChange={(event) => {
-                    const parsed = parseDateInputValue(event.target.value);
-                    if (parsed) {
-                      setSelectedDate(parsed);
-                    }
-                  }}
-                  className="h-11 rounded-2xl border border-white/10 bg-slate-950/65 px-4 text-sm text-white outline-none transition focus:border-amber-300/40"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(getDateInTimeZone(now, coords.timeZone))}
-                  className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-slate-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.08]"
-                >
-                  Jump to today
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <PrayerGrid items={prayerItems} />
+          <OrbitControls
+            method={settings.prayerMethod}
+            madhab={settings.madhab}
+            hijriMethod={settings.hijriMethod}
+            hijriAdjustment={settings.hijriAdjustment}
+            prayerAdjustments={settings.prayerAdjustments}
+            theme={settings.theme}
+            automaticLocation={settings.automaticLocation}
+            notifications={settings.notifications}
+            selectedPreset={settings.selectedLocation}
+            currentLocation={coords}
+            onMethodChange={(prayerMethod) => void updateSettings({ prayerMethod })}
+            onMadhabChange={(madhab) => void updateSettings({ madhab })}
+            onHijriMethodChange={(hijriMethod) => void updateSettings({ hijriMethod })}
+            onHijriAdjustmentChange={(hijriAdjustment) =>
+              void updateSettings({ hijriAdjustment })
+            }
+            onPrayerAdjustmentsChange={(prayerAdjustments) =>
+              void updateSettings({ prayerAdjustments })
+            }
+            onThemeChange={(theme) => void updateSettings({ theme })}
+            onAutomaticLocationChange={(automaticLocation) =>
+              void updateSettings({ automaticLocation })
+            }
+            onNotificationsChange={(notifications) =>
+              void updateSettings({ notifications })
+            }
+            onResetSettings={() => void resetSettings()}
+            onPresetChange={handlePresetChange}
+            onLocateMe={locateMe}
+            onCoordsChange={handleCoordsChange}
+            isLocating={isLocating}
+            isResolvingLocationTimeZone={isResolvingLocationTimeZone}
+            locationStatusMessage={locationStatusMessage}
+            locationErrorMessage={locationErrorMessage}
+            lastCurrentLocationAt={settings.lastCurrentLocationAt}
+            compact={isMobile}
+          />
 
           {isMobile ? (
-            <div className="orbit-mobile-summary rounded-[24px] p-4">
-              <div className="text-lg font-semibold text-white">Phone view</div>
-              <div className="mt-1 text-sm text-slate-400">
-                Graphs are hidden on smaller screens to keep Orbit fast and readable.
-              </div>
-
-              <div className="mt-4">
-                <StatsGrid stats={stats} moon={moon} />
-              </div>
-            </div>
+            <StatsGrid
+              stats={stats}
+              moon={moon}
+              latitude={coords.latitude}
+              longitude={coords.longitude}
+              timeZone={coords.timeZone}
+              compact
+            />
           ) : (
             <details
               className="orbit-deferred-section rounded-[30px] border border-white/10 bg-slate-950/50 p-4 backdrop-blur-xl"
@@ -344,16 +329,13 @@ export default function App() {
             >
               <summary className="flex cursor-pointer list-none items-center justify-between">
                 <div>
-                  <div className="text-lg font-semibold text-white">Expanded daily insights</div>
-                  <div className="mt-1 text-sm text-slate-400">
-                    Solar curve, spacing chart, Qibla compass, and supporting data.
-                  </div>
+                  <div className="text-lg font-semibold text-white">Insights</div>
                 </div>
                 <ChevronDown className="h-5 w-5 text-slate-400" />
               </summary>
 
-              <div className="mt-4 grid gap-4">
-                {showSolarDetails ? (
+              {showSolarDetails ? (
+                <div className="mt-4 grid gap-4">
                   <Suspense
                     fallback={
                       <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
@@ -371,22 +353,29 @@ export default function App() {
                       <PrayerSpacingCard spacingData={spacingData} />
                     </div>
                   </Suspense>
-                ) : null}
-
-                <StatsGrid stats={stats} moon={moon} />
-              </div>
+                  <StatsGrid
+                    stats={stats}
+                    moon={moon}
+                    latitude={coords.latitude}
+                    longitude={coords.longitude}
+                    timeZone={coords.timeZone}
+                  />
+                </div>
+              ) : null}
             </details>
           )}
 
           <DailySummaryCard
             stats={stats}
             moon={moon}
-            nextPrayer={nextPrayer}
             method={settings.prayerMethod}
+            madhab={settings.madhab}
             cityLabel={coords.label}
             latitude={coords.latitude}
             longitude={coords.longitude}
             timeZone={coords.timeZone}
+            compact={isMobile}
+            prayerAdjustments={settings.prayerAdjustments}
           />
         </div>
       </div>

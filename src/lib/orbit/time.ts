@@ -78,6 +78,20 @@ export function getDateInTimeZone(date: Date, timeZone: string) {
   return new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0);
 }
 
+export function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
+  const parts = getTimeZoneParts(date, timeZone);
+  const utcTimestamp = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+
+  return Math.round((utcTimestamp - date.getTime()) / 60000);
+}
+
 export function formatTime(date: Date, timeZone?: string) {
   const parts = getTimeZoneParts(date, timeZone);
   return `${pad(parts.hour)}:${pad(parts.minute)}`;
