@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { solarAltitude, qiblaDirection } from "@/lib/orbit/astronomy";
 import { computeMoonData } from "@/lib/orbit/moon";
 import { buildPrayerMarkers, buildPrayerTimes } from "@/lib/orbit/prayer";
+import type { PrayerAdjustmentSettings } from "@/lib/orbit/settings";
 import { formatTime, minuteDiff } from "@/lib/orbit/time";
 import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
 
@@ -12,13 +13,14 @@ export function useOrbitData(
   longitude: number,
   timeZone: string,
   method: MethodKey,
-  madhab: MadhabKey
+  madhab: MadhabKey,
+  adjustments?: PrayerAdjustmentSettings
 ) {
   const currentDay = useMemo(() => selectedDate, [selectedDate]);
 
   const prayers = useMemo(
-    () => buildPrayerTimes(currentDay, latitude, longitude, method, madhab),
-    [currentDay, latitude, longitude, method, madhab]
+    () => buildPrayerTimes(currentDay, latitude, longitude, method, madhab, adjustments),
+    [currentDay, latitude, longitude, method, madhab, adjustments]
   );
 
   const moon = useMemo(() => computeMoonData(currentDay), [currentDay]);

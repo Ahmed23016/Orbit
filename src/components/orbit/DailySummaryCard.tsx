@@ -3,6 +3,7 @@ import { memo } from "react";
 import { SectionCard } from "@/components/orbit/SectionCard";
 import { useLivePrayerStatus } from "@/hooks/orbit/useLivePrayerStatus";
 import { calculationMethods } from "@/lib/orbit/constants";
+import type { PrayerAdjustmentSettings } from "@/lib/orbit/settings";
 import {
   countdown,
   formatCoordinate,
@@ -29,6 +30,8 @@ type DailySummaryCardProps = {
   latitude: number;
   longitude: number;
   timeZone: string;
+  compact?: boolean;
+  prayerAdjustments?: PrayerAdjustmentSettings;
 };
 
 function DailySummaryCardInner({
@@ -40,28 +43,30 @@ function DailySummaryCardInner({
   latitude,
   longitude,
   timeZone,
+  compact = false,
+  prayerAdjustments,
 }: DailySummaryCardProps) {
   const rows = [
-    { label: "Solar noon reference", value: stats.solarNoon },
-    { label: "Total night duration", value: formatDuration(stats.nightMinutes) },
-    { label: "Current moon illumination", value: `${moon.illumination}%` },
-    { label: "Current method", value: calculationMethods[method].label },
-    { label: "Selected city", value: cityLabel },
+    { label: compact ? "Noon" : "Solar noon reference", value: stats.solarNoon },
+    { label: compact ? "Night" : "Total night duration", value: formatDuration(stats.nightMinutes) },
+    { label: compact ? "Moon" : "Current moon illumination", value: `${moon.illumination}%` },
+    { label: compact ? "Method" : "Current method", value: calculationMethods[method].label },
+    { label: compact ? "City" : "Selected city", value: cityLabel },
     {
-      label: "Coordinates",
+      label: compact ? "Coords" : "Coordinates",
       value: `${formatCoordinate(latitude, "lat")} / ${formatCoordinate(longitude, "lng")}`,
     },
     {
-      label: "Time zone",
+      label: compact ? "Zone" : "Time zone",
       value: formatTimeZoneLabel(timeZone),
     },
   ];
 
   return (
     <SectionCard
-      title="Daily summary"
-      description="Useful numbers derived from the selected day's sky and prayer schedule."
+      title={compact ? "Details" : "Daily summary"}
       contentClassName="grid gap-3"
+      compact={compact}
     >
       <LiveNextEventCountdown
         latitude={latitude}
@@ -69,14 +74,18 @@ function DailySummaryCardInner({
         method={method}
         madhab={madhab}
         timeZone={timeZone}
+        compact={compact}
+        prayerAdjustments={prayerAdjustments}
       />
 
       {rows.map((row) => (
         <div
           key={row.label}
-          className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4"
+          className={`flex items-center justify-between gap-4 rounded-2xl border border-white/10 ${
+            compact ? "bg-white/[0.03] p-3.5" : "bg-slate-900/60 p-4"
+          }`}
         >
-          <span className="text-slate-400">{row.label}</span>
+          <span className={compact ? "text-slate-500" : "text-slate-400"}>{row.label}</span>
           <span className="max-w-[55%] text-right font-medium text-white">{row.value}</span>
         </div>
       ))}
@@ -90,24 +99,35 @@ function LiveNextEventCountdown({
   method,
   madhab,
   timeZone,
+  compact = false,
+  prayerAdjustments,
 }: {
   latitude: number;
   longitude: number;
   method: MethodKey;
   madhab: MadhabKey;
   timeZone: string;
+  compact?: boolean;
+  prayerAdjustments?: PrayerAdjustmentSettings;
 }) {
   const { nextPrayer, now } = useLivePrayerStatus(
     latitude,
     longitude,
     timeZone,
     method,
-    madhab
+    madhab,
+    prayerAdjustments
   );
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-      <span className="text-slate-400">Next event countdown</span>
+    <div
+      className={`flex items-center justify-between gap-4 rounded-2xl border border-white/10 ${
+        compact ? "bg-white/[0.03] p-3.5" : "bg-slate-900/60 p-4"
+      }`}
+    >
+      <span className={compact ? "text-slate-500" : "text-slate-400"}>
+        {compact ? "Next" : "Next event countdown"}
+      </span>
       <span className="max-w-[55%] text-right font-medium text-white">
         {countdown(nextPrayer.value, now)}
       </span>

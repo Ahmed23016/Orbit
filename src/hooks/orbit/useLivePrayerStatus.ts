@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { buildPrayerMarkers, buildPrayerTimes, nextPrayerInfo } from "@/lib/orbit/prayer";
+import type { PrayerAdjustmentSettings } from "@/lib/orbit/settings";
 import { getTimeZoneParts } from "@/lib/orbit/time";
 import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
 
@@ -12,6 +13,7 @@ export function useLivePrayerStatus(
   timeZone: string,
   method: MethodKey,
   madhab: MadhabKey,
+  adjustments?: PrayerAdjustmentSettings,
   intervalMs = 1000
 ) {
   const now = useNow(intervalMs);
@@ -24,8 +26,8 @@ export function useLivePrayerStatus(
   );
 
   const prayers = useMemo(
-    () => buildPrayerTimes(currentDay, latitude, longitude, method, madhab),
-    [currentDay, latitude, longitude, method, madhab]
+    () => buildPrayerTimes(currentDay, latitude, longitude, method, madhab, adjustments),
+    [currentDay, latitude, longitude, method, madhab, adjustments]
   );
 
   const prayerMarkers = useMemo(() => buildPrayerMarkers(prayers), [prayers]);

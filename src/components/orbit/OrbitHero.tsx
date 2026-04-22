@@ -3,6 +3,7 @@ import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, Clock3, MapPin, Orbit, Radar } from "lucide-react";
 import { useNow } from "@/hooks/orbit/useNow";
+import { cn } from "@/lib/utils";
 
 import {
   formatCoordinate,
@@ -16,10 +17,41 @@ type OrbitHeroProps = {
   latitude: number;
   longitude: number;
   timeZone: string;
+  compact?: boolean;
 };
 
-function OrbitHeroInner({ label, latitude, longitude, timeZone }: OrbitHeroProps) {
+function OrbitHeroInner({
+  label,
+  latitude,
+  longitude,
+  timeZone,
+  compact = false,
+}: OrbitHeroProps) {
   const now = useNow(60000);
+
+  if (compact) {
+    return (
+      <div className="orbit-hero orbit-hero--compact relative overflow-hidden rounded-[24px] p-4">
+        <div className="relative">
+          <div className="text-xs font-medium tracking-[0.24em] text-slate-500">ORBIT</div>
+
+          <div className="mt-4 flex items-end justify-between gap-4">
+            <div>
+              <div className="text-4xl font-semibold tracking-tight text-white">
+                {formatTime(now, timeZone)}
+              </div>
+              <div className="mt-1 text-sm text-slate-400">{formatDate(now, timeZone)}</div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-sm font-medium text-white">{label}</div>
+              <div className="mt-1 text-xs text-slate-500">{formatTimeZoneLabel(timeZone)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="orbit-hero relative overflow-hidden rounded-[24px] p-4 md:rounded-[32px] md:p-6">
@@ -37,8 +69,8 @@ function OrbitHeroInner({ label, latitude, longitude, timeZone }: OrbitHeroProps
             <h1 className="text-3xl font-semibold tracking-tight text-white md:text-6xl">
               Orbit
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 md:mt-3 md:text-base">
-              Prayer times built for the web first and now cleaned up for phone too.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 md:mt-3 md:text-base">
+              Prayer times for your location.
             </p>
           </div>
 
@@ -53,7 +85,11 @@ function OrbitHeroInner({ label, latitude, longitude, timeZone }: OrbitHeroProps
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge className="rounded-full border border-white/12 bg-slate-950/45 px-3 py-1 text-cyan-100 hover:bg-slate-950/45">
+          <Badge
+            className={cn(
+              "rounded-full border border-white/12 bg-slate-950/45 px-3 py-1 text-cyan-100 hover:bg-slate-950/45"
+            )}
+          >
             <MapPin className="mr-1 h-3.5 w-3.5" />
             {label}
           </Badge>

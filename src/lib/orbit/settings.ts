@@ -8,6 +8,16 @@ import type {
 
 export type ThemePreference = "light" | "dark" | "system";
 
+export type PrayerAdjustmentSettings = {
+  enabled: boolean;
+  fajrAngle: number;
+  ishaAngle: number;
+  ishaInterval: number;
+  maghribAngle: number;
+  useIshaInterval: boolean;
+  useMaghribAngle: boolean;
+};
+
 export type NotificationSettings = {
   enabled: boolean;
   fajr: boolean;
@@ -28,8 +38,19 @@ export type AppSettings = {
   madhab: MadhabKey;
   hijriMethod: HijriMethodKey;
   hijriAdjustment: number;
+  prayerAdjustments: PrayerAdjustmentSettings;
   notifications: NotificationSettings;
   theme: ThemePreference;
+};
+
+export const DEFAULT_PRAYER_ADJUSTMENT_SETTINGS: PrayerAdjustmentSettings = {
+  enabled: false,
+  fajrAngle: 18,
+  ishaAngle: 17,
+  ishaInterval: 0,
+  maghribAngle: 0,
+  useIshaInterval: false,
+  useMaghribAngle: false,
 };
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -52,18 +73,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
   madhab: "shafi",
   hijriMethod: "ummalqura",
   hijriAdjustment: 0,
+  prayerAdjustments: DEFAULT_PRAYER_ADJUSTMENT_SETTINGS,
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
   theme: "system",
 };
 
-export type SettingsPatch = Omit<Partial<AppSettings>, "notifications"> & {
+export type SettingsPatch = Omit<Partial<AppSettings>, "notifications" | "prayerAdjustments"> & {
   notifications?: Partial<NotificationSettings>;
+  prayerAdjustments?: Partial<PrayerAdjustmentSettings>;
 };
 
 export function mergeSettings(base: AppSettings, patch: SettingsPatch): AppSettings {
   return {
     ...base,
     ...patch,
+    prayerAdjustments: {
+      ...base.prayerAdjustments,
+      ...patch.prayerAdjustments,
+    },
     notifications: {
       ...base.notifications,
       ...patch.notifications,

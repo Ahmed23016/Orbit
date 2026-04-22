@@ -1,5 +1,6 @@
 import { CalculationMethod } from "adhan";
 
+import type { PrayerAdjustmentSettings } from "./settings";
 import type { LocationPreset, MethodKey, PresetKey } from "./types";
 
 export const calculationMethods = {
@@ -57,8 +58,49 @@ export const locationPresets: Record<PresetKey, LocationPreset> = {
   },
 };
 
-export function getMethodDetails(method: MethodKey) {
+export function buildCalculationParameters(
+  method: MethodKey,
+  adjustments?: PrayerAdjustmentSettings
+) {
   const params = calculationMethods[method].build();
+
+  if (adjustments?.enabled) {
+    params.fajrAngle = adjustments.fajrAngle;
+
+    if (adjustments.useIshaInterval) {
+      params.ishaInterval = Math.max(0, Math.round(adjustments.ishaInterval));
+      params.ishaAngle = 0;
+    } else {
+      params.ishaAngle = adjustments.ishaAngle;
+      params.ishaInterval = 0;
+    }
+
+    if (adjustments.useMaghribAngle) {
+      params.maghribAngle = adjustments.maghribAngle;
+    } else {
+      delete (params as { maghribAngle?: number }).maghribAngle;
+    }
+  }
+
+  return params;
+}
+
+export function getMethodDefaults(method: MethodKey) {
+  const params = calculationMethods[method].build();
+
+  return {
+    fajrAngle: params.fajrAngle,
+    ishaAngle: params.ishaAngle,
+    maghribAngle: params.maghribAngle ?? null,
+    ishaInterval: params.ishaInterval,
+  };
+}
+
+export function getMethodDetails(
+  method: MethodKey,
+  adjustments?: PrayerAdjustmentSettings
+) {
+  const params = buildCalculationParameters(method, adjustments);
 
   return {
     fajrAngle: params.fajrAngle,

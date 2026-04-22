@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
-import { CalendarDays } from "lucide-react";
 
+import { SectionCard } from "@/components/orbit/SectionCard";
 import { useNow } from "@/hooks/orbit/useNow";
 import {
   addDays,
@@ -21,6 +21,7 @@ type ViewingDayCardProps = {
   hijriAdjustment: number;
   maghrib: Date;
   onSelectedDateChange: (date: Date) => void;
+  compact?: boolean;
 };
 
 function ViewingDayCardInner({
@@ -31,6 +32,7 @@ function ViewingDayCardInner({
   hijriAdjustment,
   maghrib,
   onSelectedDateChange,
+  compact = false,
 }: ViewingDayCardProps) {
   const now = useNow(60000);
 
@@ -45,48 +47,44 @@ function ViewingDayCardInner({
   }, [currentDay, hijriMethod, maghrib, now, timeZone]);
 
   return (
-    <div className="orbit-surface rounded-[30px] border border-white/10 p-4">
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.34em] text-amber-100/70">
-            <CalendarDays className="h-4 w-4" />
-            Viewing day
-          </div>
-          <div className="mt-2 text-xl font-semibold text-white">
-            {formatDate(currentDay, timeZone)}
-          </div>
-          <div className="mt-1 text-sm font-medium text-amber-200">
-            Hijri: {formatIslamicDate(hijriSourceDate, timeZone, hijriMethod, hijriAdjustment)}
-          </div>
-          <div className="mt-1 text-sm text-slate-400">
-            Choose any day and Orbit will show that day&apos;s prayer times. Default is today.
-            In local mode, the Hijri date rolls after Maghrib.
-          </div>
+    <SectionCard
+      title={compact ? "Day" : "Viewing day"}
+      compact={compact}
+      className="orbit-surface"
+      contentClassName="grid gap-4 md:grid-cols-[1fr_auto] md:items-end"
+    >
+      <div>
+        <div className="text-xl font-semibold text-white">
+          {formatDate(currentDay, timeZone)}
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input
-            type="date"
-            value={formatDateInputValue(selectedDate, timeZone)}
-            onChange={(event) => {
-              const parsed = parseDateInputValue(event.target.value);
-              if (parsed) {
-                onSelectedDateChange(parsed);
-              }
-            }}
-            className="h-11 rounded-2xl border border-white/10 bg-slate-950/65 px-4 text-sm text-white outline-none transition focus:border-amber-300/40"
-          />
-
-          <button
-            type="button"
-            onClick={() => onSelectedDateChange(getDateInTimeZone(new Date(), timeZone))}
-            className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-slate-100 transition hover:border-cyan-300/30 hover:bg-cyan-300/[0.08]"
-          >
-            Jump to today
-          </button>
+        <div className="mt-1 text-sm font-medium text-slate-300">
+          Hijri {formatIslamicDate(hijriSourceDate, timeZone, hijriMethod, hijriAdjustment)}
         </div>
+        {!compact ? <div className="mt-1 text-sm text-slate-400">Local mode rolls after Maghrib.</div> : null}
       </div>
-    </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input
+          type="date"
+          value={formatDateInputValue(selectedDate, timeZone)}
+          onChange={(event) => {
+            const parsed = parseDateInputValue(event.target.value);
+            if (parsed) {
+              onSelectedDateChange(parsed);
+            }
+          }}
+          className="h-11 rounded-2xl border border-white/10 bg-slate-950/65 px-4 text-sm text-white outline-none transition focus:border-slate-400/50"
+        />
+
+        <button
+          type="button"
+          onClick={() => onSelectedDateChange(getDateInTimeZone(new Date(), timeZone))}
+          className="h-11 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.06]"
+        >
+          Today
+        </button>
+      </div>
+    </SectionCard>
   );
 }
 

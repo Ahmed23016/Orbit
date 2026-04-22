@@ -1,6 +1,7 @@
 import { Coordinates, Madhab, PrayerTimes } from "adhan";
 
-import { calculationMethods } from "./constants";
+import { buildCalculationParameters } from "./constants";
+import type { PrayerAdjustmentSettings } from "./settings";
 import { formatDateLabel, getDateInTimeZone, minuteDiff, minutesSinceMidnight } from "./time";
 import type {
   MadhabKey,
@@ -16,10 +17,11 @@ export function buildPrayerTimes(
   latitude: number,
   longitude: number,
   method: MethodKey,
-  madhab: MadhabKey
+  madhab: MadhabKey,
+  adjustments?: PrayerAdjustmentSettings
 ): PrayerSet {
   const coordinates = new Coordinates(latitude, longitude);
-  const params = calculationMethods[method].build();
+  const params = buildCalculationParameters(method, adjustments);
   params.madhab = madhab === "hanafi" ? Madhab.Hanafi : Madhab.Shafi;
   const prayerTimes = new PrayerTimes(coordinates, date, params);
 

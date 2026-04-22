@@ -33,11 +33,7 @@ function SolarChartCardInner({ chartData, prayerMarkers, timeZone }: SolarChartC
   const now = useNow(60000);
 
   return (
-    <SectionCard
-      title="Solar altitude and prayer timeline"
-      description="The Timeline"
-      className="xl:col-span-2"
-    >
+    <SectionCard title="Solar" className="xl:col-span-2">
       <div className="h-[420px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 18, right: 18, left: -10, bottom: 8 }}>

@@ -1,6 +1,7 @@
 import { memo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 type PrayerGridItem = {
@@ -11,9 +12,10 @@ type PrayerGridItem = {
 
 type PrayerGridProps = {
   items: PrayerGridItem[];
+  compact?: boolean;
 };
 
-function PrayerGridInner({ items }: PrayerGridProps) {
+function PrayerGridInner({ items, compact = false }: PrayerGridProps) {
   return (
     <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
@@ -22,10 +24,18 @@ function PrayerGridInner({ items }: PrayerGridProps) {
         return (
           <Card
             key={item.title}
-            className="orbit-card rounded-[20px] border border-cyan-500/10 bg-slate-950/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_16px_36px_rgba(0,0,0,0.28)] md:rounded-[24px]"
+            className={cn(
+              "orbit-card rounded-[20px] border border-cyan-500/10 bg-slate-950/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_16px_36px_rgba(0,0,0,0.28)] md:rounded-[24px]",
+              compact && "border-white/10 bg-slate-950/92 shadow-none"
+            )}
           >
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.28em] text-cyan-300/85">
+              <CardTitle
+                className={cn(
+                  "flex items-center gap-2 text-xs font-medium uppercase tracking-[0.28em] text-cyan-300/85",
+                  compact && "tracking-[0.08em] text-slate-400"
+                )}
+              >
                 <Icon className="h-4 w-4" />
                 {item.title}
               </CardTitle>
