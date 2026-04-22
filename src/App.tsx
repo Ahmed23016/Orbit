@@ -311,7 +311,14 @@ export default function App() {
           />
 
           {isMobile ? (
-            <StatsGrid stats={stats} moon={moon} compact />
+            <StatsGrid
+              stats={stats}
+              moon={moon}
+              latitude={coords.latitude}
+              longitude={coords.longitude}
+              timeZone={coords.timeZone}
+              compact
+            />
           ) : (
             <details
               className="orbit-deferred-section rounded-[30px] border border-white/10 bg-slate-950/50 p-4 backdrop-blur-xl"
@@ -346,7 +353,13 @@ export default function App() {
                       <PrayerSpacingCard spacingData={spacingData} />
                     </div>
                   </Suspense>
-                  <StatsGrid stats={stats} moon={moon} />
+                  <StatsGrid
+                    stats={stats}
+                    moon={moon}
+                    latitude={coords.latitude}
+                    longitude={coords.longitude}
+                    timeZone={coords.timeZone}
+                  />
                 </div>
               ) : null}
             </details>
