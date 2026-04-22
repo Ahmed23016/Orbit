@@ -30,56 +30,11 @@ jobs:
       - name: Build Web
         run: npm run build
 
-  android_debug_apk:
-    name: Build Android Debug APK
-    runs-on: ubuntu-latest
-    needs: web_checks
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build Web
-        run: npm run build
-
-      - name: Sync Capacitor Android
-        run: npx cap sync android
-
-      - name: Make Gradle Executable
-        working-directory: android
-        run: chmod +x gradlew
-
-      - name: Build Debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: orbit-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
   android_apk_main:
     name: Build Android APK On Main
     runs-on: ubuntu-latest
     needs: web_checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
 
     steps:
       - name: Checkout
