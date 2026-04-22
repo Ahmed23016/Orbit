@@ -156,6 +156,7 @@ export function OrbitControls({
   locationErrorMessage = "",
   lastCurrentLocationAt = null,
 }: OrbitControlsProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -166,7 +167,7 @@ export function OrbitControls({
   const methodDetails = useMemo(() => getMethodDetails(method), [method]);
 
   useEffect(() => {
-    if (deferredQuery.length < 2) {
+    if (!isOpen || deferredQuery.length < 2) {
       return;
     }
 
@@ -227,7 +228,7 @@ export function OrbitControls({
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [deferredQuery]);
+  }, [deferredQuery, isOpen]);
 
   const quickPresets = useMemo(
     () => Object.entries(locationPresets) as [PresetKey, LocationPreset][],
@@ -255,7 +256,11 @@ export function OrbitControls({
   };
 
   return (
-    <details className="orbit-panel rounded-[30px] p-4 md:p-5">
+    <details
+      className="orbit-panel rounded-[30px] p-4 md:p-5"
+      open={isOpen}
+      onToggle={(event) => setIsOpen((event.target as HTMLDetailsElement).open)}
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.34em] text-amber-100/70">
@@ -267,239 +272,246 @@ export function OrbitControls({
             angles.
           </div>
         </div>
-        <ChevronDown className="h-5 w-5 text-slate-400 transition group-open:rotate-180" />
+        <ChevronDown
+          className={`h-5 w-5 text-slate-400 transition ${isOpen ? "rotate-180" : ""}`}
+        />
       </summary>
 
-      <div className="mt-5 grid gap-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          <Select value={method} onValueChange={(value) => onMethodChange(value as MethodKey)}>
-            <SelectTrigger className="h-12 rounded-2xl border-white/10 bg-slate-950/60 text-slate-100 shadow-none">
-              <SelectValue placeholder="Calculation method" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(calculationMethods).map(([key, value]) => (
-                <SelectItem key={key} value={key}>
-                  {value.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={madhab} onValueChange={(value) => onMadhabChange(value as MadhabKey)}>
-            <SelectTrigger className="h-12 rounded-2xl border-white/10 bg-slate-950/60 text-slate-100 shadow-none">
-              <SelectValue placeholder="Madhab" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="shafi">Shafi / Maliki / Hanbali</SelectItem>
-              <SelectItem value="hanafi">Hanafi</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={hijriMethod}
-            onValueChange={(value) => onHijriMethodChange(value as HijriMethodKey)}
-          >
-            <SelectTrigger className="h-12 rounded-2xl border-white/10 bg-slate-950/60 text-slate-100 shadow-none">
-              <SelectValue placeholder="Hijri method" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="local">Local mosque / moon sighting</SelectItem>
-              <SelectItem value="calculated">Calculated</SelectItem>
-              <SelectItem value="ummalqura">Saudi / Umm al-Qura</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-3 rounded-[26px] border border-white/10 bg-white/[0.04] p-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
-            <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
-              Fajr angle
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
-              {methodDetails.fajrAngle} deg
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
-            <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
-              Isha angle
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
-              {methodDetails.ishaInterval > 0
-                ? `${methodDetails.ishaInterval} min`
-                : `${methodDetails.ishaAngle} deg`}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
-            <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
-              Maghrib angle
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-white">
-              {methodDetails.maghribAngle ?? "Sunset"}
-              {methodDetails.maghribAngle ? " deg" : ""}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
-            <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
-              Time zone
-            </div>
-            <div className="mt-2 text-xl font-semibold text-white">
-              {formatTimeZoneLabel(currentLocation.timeZone)}
-            </div>
-          </div>
-        </div>
-
-        {hijriMethod === "local" ? (
-          <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-3">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
-                  Local Hijri adjustment
-                </div>
-                <div className="mt-1 text-sm text-slate-300">
-                  Use this if your mosque announces the month a day earlier or later.
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onHijriAdjustmentChange(Math.max(-2, hijriAdjustment - 1))}
-                  className="h-10 w-10 rounded-2xl border border-white/10 bg-slate-950/60 text-white transition hover:border-cyan-300/30"
-                >
-                  -
-                </button>
-                <div className="min-w-20 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2 text-center font-medium text-white">
-                  {hijriAdjustment > 0 ? `+${hijriAdjustment}` : hijriAdjustment}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onHijriAdjustmentChange(Math.min(2, hijriAdjustment + 1))}
-                  className="h-10 w-10 rounded-2xl border border-white/10 bg-slate-950/60 text-white transition hover:border-cyan-300/30"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="grid gap-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search any city or place"
-              className="h-12 w-full rounded-2xl border border-white/10 bg-slate-950/60 pl-11 pr-4 text-sm text-white outline-none transition focus:border-amber-300/40 focus:bg-slate-950/75"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {quickPresets.map(([key, preset]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onPresetChange(key)}
-                className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                  selectedPreset === key
-                    ? "border-amber-300/30 bg-amber-300/15 text-amber-50"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:text-white"
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          {query.trim().length >= 2 ? (
-            <div className="rounded-[24px] border border-white/10 bg-slate-950/55 p-3">
-              <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.24em] text-slate-400">
-                <span>Search results</span>
-                <span>
-                  {isApplyingResult ? "Applying..." : isSearching ? "Searching..." : `${results.length} found`}
-                </span>
-              </div>
-
-              <div className="grid gap-2">
-                {results.map((result) => (
-                  <button
-                    key={result.id}
-                    type="button"
-                    onClick={() => void selectSearchResult(result)}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-left transition hover:border-amber-300/20 hover:bg-amber-300/[0.06]"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-white">{result.label}</span>
-                      <span className="text-xs text-slate-400">
-                        {result.latitude.toFixed(3)}, {result.longitude.toFixed(3)}
-                      </span>
-                    </div>
-                    {result.subtitle ? (
-                      <div className="mt-1 text-sm text-slate-400">{result.subtitle}</div>
-                    ) : null}
-                  </button>
+      {isOpen ? (
+        <div className="mt-5 grid gap-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Select value={method} onValueChange={(value) => onMethodChange(value as MethodKey)}>
+              <SelectTrigger className="h-12 rounded-2xl border-white/10 bg-slate-950/60 text-slate-100 shadow-none">
+                <SelectValue placeholder="Calculation method" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(calculationMethods).map(([key, value]) => (
+                  <SelectItem key={key} value={key}>
+                    {value.label}
+                  </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={madhab} onValueChange={(value) => onMadhabChange(value as MadhabKey)}>
+              <SelectTrigger className="h-12 rounded-2xl border-white/10 bg-slate-950/60 text-slate-100 shadow-none">
+                <SelectValue placeholder="Madhab" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="shafi">Shafi / Maliki / Hanbali</SelectItem>
+                <SelectItem value="hanafi">Hanafi</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={hijriMethod}
+              onValueChange={(value) => onHijriMethodChange(value as HijriMethodKey)}
+            >
+              <SelectTrigger className="h-12 rounded-2xl border-white/10 bg-slate-950/60 text-slate-100 shadow-none">
+                <SelectValue placeholder="Hijri method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">Local mosque / moon sighting</SelectItem>
+                <SelectItem value="calculated">Calculated</SelectItem>
+                <SelectItem value="ummalqura">Saudi / Umm al-Qura</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-3 rounded-[26px] border border-white/10 bg-white/[0.04] p-3 md:grid-cols-4">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
+                Fajr angle
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-white">
+                {methodDetails.fajrAngle} deg
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
+                Isha angle
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-white">
+                {methodDetails.ishaInterval > 0
+                  ? `${methodDetails.ishaInterval} min`
+                  : `${methodDetails.ishaAngle} deg`}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
+                Maghrib angle
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-white">
+                {methodDetails.maghribAngle ?? "Sunset"}
+                {methodDetails.maghribAngle ? " deg" : ""}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
+                Time zone
+              </div>
+              <div className="mt-2 text-xl font-semibold text-white">
+                {formatTimeZoneLabel(currentLocation.timeZone)}
+              </div>
+            </div>
+          </div>
+
+          {hijriMethod === "local" ? (
+            <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
+                    Local Hijri adjustment
+                  </div>
+                  <div className="mt-1 text-sm text-slate-300">
+                    Use this if your mosque announces the month a day earlier or later.
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onHijriAdjustmentChange(Math.max(-2, hijriAdjustment - 1))}
+                    className="h-10 w-10 rounded-2xl border border-white/10 bg-slate-950/60 text-white transition hover:border-cyan-300/30"
+                  >
+                    -
+                  </button>
+                  <div className="min-w-20 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2 text-center font-medium text-white">
+                    {hijriAdjustment > 0 ? `+${hijriAdjustment}` : hijriAdjustment}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onHijriAdjustmentChange(Math.min(2, hijriAdjustment + 1))}
+                    className="h-10 w-10 rounded-2xl border border-white/10 bg-slate-950/60 text-white transition hover:border-cyan-300/30"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
-        </div>
 
-        <ManualCoordinateForm
-          key={`${currentLocation.latitude}:${currentLocation.longitude}:${currentLocation.label}`}
-          currentLocation={currentLocation}
-          onCoordsChange={onCoordsChange}
-          onErrorChange={setSearchError}
-        />
+          <div className="grid gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search any city or place"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-slate-950/60 pl-11 pr-4 text-sm text-white outline-none transition focus:border-amber-300/40 focus:bg-slate-950/75"
+              />
+            </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            onClick={onLocateMe}
-            disabled={isLocating}
-            className="h-11 flex-1 rounded-2xl bg-cyan-300 text-slate-950 shadow-none hover:bg-cyan-200"
-          >
-            {isLocating ? (
-              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <LocateFixed className="mr-2 h-4 w-4" />
-            )}
-            {isLocating ? "Getting location..." : "Use my location"}
-          </Button>
+            <div className="flex flex-wrap gap-2">
+              {quickPresets.map(([key, preset]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onPresetChange(key)}
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                    selectedPreset === key
+                      ? "border-amber-300/30 bg-amber-300/15 text-amber-50"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:text-white"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
 
-          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/45 px-3 py-2 text-sm text-slate-300">
-            <MapPin className="h-4 w-4 text-amber-200" />
-            Active location:{" "}
-            <span className="font-medium text-white">{currentLocation.label}</span>
-          </div>
-        </div>
+            {query.trim().length >= 2 ? (
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/55 p-3">
+                <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.24em] text-slate-400">
+                  <span>Search results</span>
+                  <span>
+                    {isApplyingResult
+                      ? "Applying..."
+                      : isSearching
+                        ? "Searching..."
+                        : `${results.length} found`}
+                  </span>
+                </div>
 
-        {currentLocation.label === "Current location" && lastCurrentLocationAt ? (
-          <div className="text-sm text-slate-400">
-            {formatLocationUpdatedAt(lastCurrentLocationAt)}
-          </div>
-        ) : null}
-
-        {locationStatusMessage ? (
-          <div className="flex items-center gap-2 text-sm text-cyan-200">
-            {isLocating || isResolvingLocationTimeZone ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
+                <div className="grid gap-2">
+                  {results.map((result) => (
+                    <button
+                      key={result.id}
+                      type="button"
+                      onClick={() => void selectSearchResult(result)}
+                      className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-left transition hover:border-amber-300/20 hover:bg-amber-300/[0.06]"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-white">{result.label}</span>
+                        <span className="text-xs text-slate-400">
+                          {result.latitude.toFixed(3)}, {result.longitude.toFixed(3)}
+                        </span>
+                      </div>
+                      {result.subtitle ? (
+                        <div className="mt-1 text-sm text-slate-400">{result.subtitle}</div>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : null}
-            {locationStatusMessage}
           </div>
-        ) : null}
 
-        {locationErrorMessage ? (
-          <div className="text-sm text-rose-300">{locationErrorMessage}</div>
-        ) : null}
+          <ManualCoordinateForm
+            key={`${currentLocation.latitude}:${currentLocation.longitude}:${currentLocation.label}`}
+            currentLocation={currentLocation}
+            onCoordsChange={onCoordsChange}
+            onErrorChange={setSearchError}
+          />
 
-        {isLocating && !locationStatusMessage ? (
-          <div className="flex items-center gap-2 text-sm text-cyan-200">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-            Finding your coordinates and resolving the local time zone...
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              onClick={onLocateMe}
+              disabled={isLocating}
+              className="h-11 flex-1 rounded-2xl bg-cyan-300 text-slate-950 shadow-none hover:bg-cyan-200"
+            >
+              {isLocating ? (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LocateFixed className="mr-2 h-4 w-4" />
+              )}
+              {isLocating ? "Getting location..." : "Use my location"}
+            </Button>
+
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/45 px-3 py-2 text-sm text-slate-300">
+              <MapPin className="h-4 w-4 text-amber-200" />
+              Active location: <span className="font-medium text-white">{currentLocation.label}</span>
+            </div>
           </div>
-        ) : null}
 
-        {searchError ? <div className="text-sm text-rose-300">{searchError}</div> : null}
-      </div>
+          {currentLocation.label === "Current location" && lastCurrentLocationAt ? (
+            <div className="text-sm text-slate-400">
+              {formatLocationUpdatedAt(lastCurrentLocationAt)}
+            </div>
+          ) : null}
+
+          {locationStatusMessage ? (
+            <div className="flex items-center gap-2 text-sm text-cyan-200">
+              {isLocating || isResolvingLocationTimeZone ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : null}
+              {locationStatusMessage}
+            </div>
+          ) : null}
+
+          {locationErrorMessage ? (
+            <div className="text-sm text-rose-300">{locationErrorMessage}</div>
+          ) : null}
+
+          {isLocating && !locationStatusMessage ? (
+            <div className="flex items-center gap-2 text-sm text-cyan-200">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              Finding your coordinates and resolving the local time zone...
+            </div>
+          ) : null}
+
+          {searchError ? <div className="text-sm text-rose-300">{searchError}</div> : null}
+        </div>
+      ) : null}
     </details>
   );
 }

@@ -2,16 +2,11 @@ import { useMemo } from "react";
 
 import { solarAltitude, qiblaDirection } from "@/lib/orbit/astronomy";
 import { computeMoonData } from "@/lib/orbit/moon";
-import {
-  buildPrayerMarkers,
-  buildPrayerTimes,
-  nextPrayerInfo,
-} from "@/lib/orbit/prayer";
-import { formatTime, getDateInTimeZone, minuteDiff } from "@/lib/orbit/time";
+import { buildPrayerMarkers, buildPrayerTimes } from "@/lib/orbit/prayer";
+import { formatTime, minuteDiff } from "@/lib/orbit/time";
 import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
 
 export function useOrbitData(
-  now: Date,
   selectedDate: Date,
   latitude: number,
   longitude: number,
@@ -19,7 +14,6 @@ export function useOrbitData(
   method: MethodKey,
   madhab: MadhabKey
 ) {
-  const todayInLocation = useMemo(() => getDateInTimeZone(now, timeZone), [now, timeZone]);
   const currentDay = useMemo(() => selectedDate, [selectedDate]);
 
   const prayers = useMemo(
@@ -27,18 +21,9 @@ export function useOrbitData(
     [currentDay, latitude, longitude, method, madhab]
   );
 
-  const todaysPrayers = useMemo(
-    () => buildPrayerTimes(todayInLocation, latitude, longitude, method, madhab),
-    [todayInLocation, latitude, longitude, method, madhab]
-  );
-
   const moon = useMemo(() => computeMoonData(currentDay), [currentDay]);
 
   const prayerMarkers = useMemo(() => buildPrayerMarkers(prayers), [prayers]);
-  const nextPrayer = useMemo(
-    () => nextPrayerInfo(buildPrayerMarkers(todaysPrayers), now),
-    [todaysPrayers, now]
-  );
 
   const chartData = useMemo(() => {
     const rows: { time: number; altitude: number; daylight: number }[] = [];
@@ -81,12 +66,10 @@ export function useOrbitData(
   );
 
   return {
-    todayInLocation,
     currentDay,
     prayers,
     moon,
     prayerMarkers,
-    nextPrayer,
     chartData,
     stats,
     spacingData,

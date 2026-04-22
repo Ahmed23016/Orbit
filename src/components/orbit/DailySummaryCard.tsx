@@ -1,7 +1,7 @@
 import { memo } from "react";
 
 import { SectionCard } from "@/components/orbit/SectionCard";
-import { useNow } from "@/hooks/orbit/useNow";
+import { useLivePrayerStatus } from "@/hooks/orbit/useLivePrayerStatus";
 import { calculationMethods } from "@/lib/orbit/constants";
 import {
   countdown,
@@ -9,7 +9,7 @@ import {
   formatDuration,
   formatTimeZoneLabel,
 } from "@/lib/orbit/time";
-import type { MethodKey } from "@/lib/orbit/types";
+import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
 
 type MoonData = {
   illumination: number;
@@ -20,16 +20,11 @@ type Stats = {
   solarNoon: string;
 };
 
-type NextPrayer = {
-  label: string;
-  value: Date;
-};
-
 type DailySummaryCardProps = {
   stats: Stats;
   moon: MoonData;
-  nextPrayer: NextPrayer;
   method: MethodKey;
+  madhab: MadhabKey;
   cityLabel: string;
   latitude: number;
   longitude: number;
@@ -39,19 +34,17 @@ type DailySummaryCardProps = {
 function DailySummaryCardInner({
   stats,
   moon,
-  nextPrayer,
   method,
+  madhab,
   cityLabel,
   latitude,
   longitude,
   timeZone,
 }: DailySummaryCardProps) {
-  const now = useNow();
   const rows = [
     { label: "Solar noon reference", value: stats.solarNoon },
     { label: "Total night duration", value: formatDuration(stats.nightMinutes) },
     { label: "Current moon illumination", value: `${moon.illumination}%` },
-    { label: "Next event countdown", value: countdown(nextPrayer.value, now) },
     { label: "Current method", value: calculationMethods[method].label },
     { label: "Selected city", value: cityLabel },
     {
@@ -70,6 +63,14 @@ function DailySummaryCardInner({
       description="Useful numbers derived from the selected day's sky and prayer schedule."
       contentClassName="grid gap-3"
     >
+      <LiveNextEventCountdown
+        latitude={latitude}
+        longitude={longitude}
+        method={method}
+        madhab={madhab}
+        timeZone={timeZone}
+      />
+
       {rows.map((row) => (
         <div
           key={row.label}
@@ -80,6 +81,37 @@ function DailySummaryCardInner({
         </div>
       ))}
     </SectionCard>
+  );
+}
+
+function LiveNextEventCountdown({
+  latitude,
+  longitude,
+  method,
+  madhab,
+  timeZone,
+}: {
+  latitude: number;
+  longitude: number;
+  method: MethodKey;
+  madhab: MadhabKey;
+  timeZone: string;
+}) {
+  const { nextPrayer, now } = useLivePrayerStatus(
+    latitude,
+    longitude,
+    timeZone,
+    method,
+    madhab
+  );
+
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+      <span className="text-slate-400">Next event countdown</span>
+      <span className="max-w-[55%] text-right font-medium text-white">
+        {countdown(nextPrayer.value, now)}
+      </span>
+    </div>
   );
 }
 

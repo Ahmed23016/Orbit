@@ -14,6 +14,7 @@
   filter: blur(70px);
   opacity: 0.7;
   animation: orbitFloat 18s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .orbit-shell__glow--one {
@@ -54,6 +55,21 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+.orbit-surface {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(9, 14, 24, 0.72)),
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 34%);
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.orbit-card {
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .orbit-safe {
   padding-top: max(1.25rem, env(safe-area-inset-top));
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
@@ -74,6 +90,10 @@
   box-shadow:
     0 22px 52px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.orbit-hero__orb {
+  pointer-events: none;
 }
 
 .orbit-mobile-summary {
@@ -99,6 +119,11 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.orbit-modal-scrim {
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+}
+
 @keyframes orbitFloat {
   0%,
   100% {
@@ -111,26 +136,31 @@
 }
 
 @media (max-width: 767px) {
-  .orbit-shell__grid {
-    background-size: 52px 52px;
+  .orbit-shell {
+    background: linear-gradient(180deg, #07111f 0%, #040913 54%, #02050b 100%);
   }
 
-  .orbit-shell__glow {
-    animation: none;
-    filter: blur(42px);
+  .orbit-shell__grid,
+  .orbit-shell__glow,
+  .orbit-hero__orb {
+    display: none;
   }
 
-  .orbit-shell__glow--one {
-    width: 12rem;
-    height: 12rem;
+  .orbit-panel,
+  .orbit-hero,
+  .orbit-mobile-summary,
+  .orbit-loading-panel,
+  .orbit-surface,
+  .orbit-card {
+    background: rgba(8, 14, 24, 0.96);
+    box-shadow:
+      0 8px 18px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
-  .orbit-shell__glow--two {
-    width: 14rem;
-    height: 14rem;
-    right: -4rem;
+  .orbit-modal-scrim {
+    backdrop-filter: none;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {

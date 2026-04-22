@@ -19,7 +19,7 @@ export function SectionCard({
 }: SectionCardProps) {
   return (
     <Card
-      className={`rounded-[24px] border border-white/10 bg-slate-950/88 shadow-[0_18px_48px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)] md:rounded-[30px] ${className}`}
+      className={`orbit-card rounded-[24px] border border-white/10 bg-slate-950/88 shadow-[0_18px_48px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)] md:rounded-[30px] ${className}`}
     >
       <CardHeader>
         <CardTitle className="text-xl text-white md:text-2xl">{title}</CardTitle>

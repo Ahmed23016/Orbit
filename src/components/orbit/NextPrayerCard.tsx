@@ -1,25 +1,33 @@
 import { memo } from "react";
 
 import { SectionCard } from "@/components/orbit/SectionCard";
-import { useNow } from "@/hooks/orbit/useNow";
+import { useLivePrayerStatus } from "@/hooks/orbit/useLivePrayerStatus";
 import { calculationMethods } from "@/lib/orbit/constants";
 import { countdown, formatTime, formatTimeZoneLabel } from "@/lib/orbit/time";
 import type { MadhabKey, MethodKey } from "@/lib/orbit/types";
 
-type NextPrayer = {
-  label: string;
-  value: Date;
-};
-
 type NextPrayerCardProps = {
-  nextPrayer: NextPrayer;
+  latitude: number;
+  longitude: number;
   method: MethodKey;
   madhab: MadhabKey;
   timeZone: string;
 };
 
-function NextPrayerCardInner({ nextPrayer, method, madhab, timeZone }: NextPrayerCardProps) {
-  const now = useNow();
+function NextPrayerCardInner({
+  latitude,
+  longitude,
+  method,
+  madhab,
+  timeZone,
+}: NextPrayerCardProps) {
+  const { nextPrayer, now } = useLivePrayerStatus(
+    latitude,
+    longitude,
+    timeZone,
+    method,
+    madhab
+  );
 
   return (
     <SectionCard

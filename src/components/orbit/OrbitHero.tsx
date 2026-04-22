@@ -1,5 +1,8 @@
+import { memo } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, Clock3, MapPin, Orbit, Radar } from "lucide-react";
+import { useNow } from "@/hooks/orbit/useNow";
 
 import {
   formatCoordinate,
@@ -12,15 +15,16 @@ type OrbitHeroProps = {
   label: string;
   latitude: number;
   longitude: number;
-  now: Date;
   timeZone: string;
 };
 
-export function OrbitHero({ label, latitude, longitude, now, timeZone }: OrbitHeroProps) {
+function OrbitHeroInner({ label, latitude, longitude, timeZone }: OrbitHeroProps) {
+  const now = useNow(60000);
+
   return (
     <div className="orbit-hero relative overflow-hidden rounded-[24px] p-4 md:rounded-[32px] md:p-6">
-      <div className="absolute -right-10 top-0 h-44 w-44 rounded-full bg-amber-300/20 blur-3xl" />
-      <div className="absolute left-10 top-20 h-32 w-32 rounded-full bg-cyan-300/15 blur-3xl" />
+      <div className="orbit-hero__orb absolute -right-10 top-0 h-44 w-44 rounded-full bg-amber-300/20 blur-3xl" />
+      <div className="orbit-hero__orb absolute left-10 top-20 h-32 w-32 rounded-full bg-cyan-300/15 blur-3xl" />
 
       <div className="relative space-y-4 md:space-y-5">
         <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.45em] text-cyan-200/80">
@@ -72,3 +76,5 @@ export function OrbitHero({ label, latitude, longitude, now, timeZone }: OrbitHe
     </div>
   );
 }
+
+export const OrbitHero = memo(OrbitHeroInner);
