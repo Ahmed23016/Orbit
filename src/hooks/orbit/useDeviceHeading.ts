@@ -86,13 +86,25 @@ export function useDeviceHeading(enabled: boolean) {
       return;
     }
 
-    const listener = (event: Event) => handleOrientation(event as DeviceOrientationEventWithCompass);
-    window.addEventListener("deviceorientation", listener, true);
-    window.addEventListener("deviceorientationabsolute", listener, true);
+    // Android's plain "deviceorientation" alpha is relative to an arbitrary start, not north.
+    // Prefer the absolute event there; iOS only fires "deviceorientation" with webkitCompassHeading.
+    const eventName =
+      "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
+    const listener = (event: Event) => {
+      const orientation = event as DeviceOrientationEventWithCompass;
+      if (
+        eventName === "deviceorientation" &&
+        orientation.webkitCompassHeading === undefined &&
+        !orientation.absolute
+      ) {
+        return;
+      }
+      handleOrientation(orientation);
+    };
+    window.addEventListener(eventName, listener, true);
 
     return () => {
-      window.removeEventListener("deviceorientation", listener, true);
-      window.removeEventListener("deviceorientationabsolute", listener, true);
+      window.removeEventListener(eventName, listener, true);
     };
   }, [enabled, handleOrientation, permissionState]);
 

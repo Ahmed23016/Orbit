@@ -97,6 +97,52 @@ export function formatTime(date: Date, timeZone?: string) {
   return `${pad(parts.hour)}:${pad(parts.minute)}`;
 }
 
+export function formatClock(date: Date, timeZone?: string, hour12 = false) {
+  if (Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
+
+  const { hour, minute } = getTimeZoneParts(date, timeZone);
+
+  if (!hour12) {
+    return `${pad(hour)}:${pad(minute)}`;
+  }
+
+  return `${hour % 12 || 12}:${pad(minute)} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+const dayFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+/** Formats a local-noon day object by its own calendar components (no time zone shift). */
+export function formatDay(day: Date, options: Intl.DateTimeFormatOptions) {
+  const cacheKey = JSON.stringify(options);
+  let formatter = dayFormatterCache.get(cacheKey);
+
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", options);
+    dayFormatterCache.set(cacheKey, formatter);
+  }
+
+  return formatter.format(day);
+}
+
+export function formatCountdown(target: Date, now: Date) {
+  if (Number.isNaN(target.getTime())) {
+    return "--";
+  }
+
+  const totalSeconds = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  if (h > 0) {
+    return `${h}h ${pad(m)}m`;
+  }
+
+  return `${m}m ${pad(s)}s`;
+}
+
 export function formatDate(date: Date, timeZone?: string) {
   return getFormatter(timeZone, {
     weekday: "long",
@@ -144,6 +190,37 @@ export function formatIslamicDate(
   const monthName = hijriMonthNames[hijriDate.month - 1] ?? `Month ${hijriDate.month}`;
 
   return `${monthName} ${hijriDate.day}, ${hijriDate.year} AH`;
+}
+
+export type HijriParts = {
+  day: number;
+  month: number;
+  year: number;
+  monthName: string;
+};
+
+/** Hijri date for a local-noon day object, using its own calendar components. */
+export function getHijriParts(
+  day: Date,
+  method: HijriMethodKey,
+  adjustmentDays = 0
+): HijriParts {
+  const shifted = new Date(day.getFullYear(), day.getMonth(), day.getDate() + adjustmentDays, 12);
+  const hijri = toCalendar(
+    new CalendarDate(shifted.getFullYear(), shifted.getMonth() + 1, shifted.getDate()),
+    hijriCalendarForMethod(method)
+  );
+
+  return {
+    day: hijri.day,
+    month: hijri.month,
+    year: hijri.year,
+    monthName: hijriMonthNames[hijri.month - 1] ?? `Month ${hijri.month}`,
+  };
+}
+
+export function formatHijri(parts: HijriParts) {
+  return `${parts.day} ${parts.monthName} ${parts.year} AH`;
 }
 
 export function formatDateLabel(date: Date, timeZone?: string) {
@@ -200,6 +277,7 @@ export function minuteDiff(a: Date, b: Date) {
 }
 
 export function formatDuration(totalMinutes: number) {
+  if (!Number.isFinite(totalMinutes)) return "--";
   const abs = Math.abs(totalMinutes);
   const h = Math.floor(abs / 60);
   const m = abs % 60;
@@ -216,10 +294,10 @@ export function countdown(target: Date, now: Date) {
 }
 
 export function formatCoordinate(value: number, type: "lat" | "lng") {
-  const absolute = Math.abs(value).toFixed(4);
+  const absolute = Math.abs(value).toFixed(2);
   const suffix =
     type === "lat" ? (value >= 0 ? "N" : "S") : value >= 0 ? "E" : "W";
-  return `${absolute} deg ${suffix}`;
+  return `${absolute}° ${suffix}`;
 }
 
 export function formatLocationUpdatedAt(value: string | null, now = new Date()) {

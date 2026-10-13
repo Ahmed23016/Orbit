@@ -76,6 +76,16 @@ export function qiblaDirection(latitude: number, longitude: number) {
   return Math.round(brng);
 }
 
+export function distanceToMakkahKm(latitude: number, longitude: number) {
+  const lat1 = degToRad(latitude);
+  const lat2 = degToRad(21.4225);
+  const dLat = lat2 - lat1;
+  const dLon = degToRad(39.8262 - longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 export function bearingToCompassPoint(bearing: number) {
   const points = [
     "N",

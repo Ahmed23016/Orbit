@@ -8,6 +8,8 @@ import type {
 
 export type ThemePreference = "light" | "dark" | "system";
 
+export type TimeFormat = "24h" | "12h";
+
 export type PrayerAdjustmentSettings = {
   enabled: boolean;
   fajrAngle: number;
@@ -41,6 +43,9 @@ export type AppSettings = {
   prayerAdjustments: PrayerAdjustmentSettings;
   notifications: NotificationSettings;
   theme: ThemePreference;
+  timeFormat: TimeFormat;
+  showTracker: boolean;
+  recentLocations: LocationPreset[];
 };
 
 export const DEFAULT_PRAYER_ADJUSTMENT_SETTINGS: PrayerAdjustmentSettings = {
@@ -76,6 +81,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   prayerAdjustments: DEFAULT_PRAYER_ADJUSTMENT_SETTINGS,
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
   theme: "system",
+  timeFormat: "24h",
+  showTracker: true,
+  recentLocations: [],
 };
 
 export type SettingsPatch = Omit<Partial<AppSettings>, "notifications" | "prayerAdjustments"> & {

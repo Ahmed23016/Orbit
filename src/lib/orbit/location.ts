@@ -172,3 +172,48 @@ export async function resolveTimeZone(latitude: number, longitude: number) {
   inFlightTimeZoneRequests.set(cacheKey, request);
   return request;
 }
+
+type ReverseGeocodePayload = {
+  name?: string;
+  address?: Record<string, string | undefined>;
+};
+
+/** Best-effort place name (city, town, …) for coordinates. */
+export async function reverseGeocode(latitude: number, longitude: number) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), TIME_ZONE_TIMEOUT_MS);
+
+  try {
+    const params = new URLSearchParams({
+      lat: String(latitude),
+      lon: String(longitude),
+      format: "jsonv2",
+      zoom: "10",
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error("Reverse geocoding failed");
+    }
+
+    const payload = (await response.json()) as ReverseGeocodePayload;
+    const address = payload.address ?? {};
+    const name =
+      address.city ??
+      address.town ??
+      address.village ??
+      address.municipality ??
+      address.county ??
+      payload.name;
+
+    if (!name) {
+      throw new Error("No place name returned");
+    }
+
+    return name;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
