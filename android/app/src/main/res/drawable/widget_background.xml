@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Night-sky gradient matching the app's hero card. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="290"
+        android:startColor="#0C1330"
+        android:centerColor="#1A2150"
+        android:endColor="#2C2558"
+        android:type="linear" />
+    <corners android:radius="24dp" />
+</shape>

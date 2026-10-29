@@ -1,28 +1,54 @@
-import { Coordinates, Madhab, PrayerTimes } from "adhan";
+import { Coordinates, HighLatitudeRule, Madhab, PolarCircleResolution, PrayerTimes } from "adhan";
 
 import { buildCalculationParameters } from "./constants";
-import type { PrayerAdjustmentSettings } from "./settings";
-import { formatDateLabel, getDateInTimeZone, minuteDiff, minutesSinceMidnight } from "./time";
-import type {
-  MadhabKey,
-  MethodKey,
-  PrayerMarker,
-  PrayerSet,
-  YearlyPrayerExtremes,
-  YearlyPrayerRow,
-} from "./types";
+import type { HighLatitudeSetting, PrayerAdjustmentSettings, TimeOffsets } from "./settings";
+import type { MadhabKey, MethodKey, PrayerSet } from "./types";
 
-export function buildPrayerTimes(
+/**
+ * The rule actually applied above ~48° latitude, where twilight can last all night in summer.
+ * "auto" follows adhan's recommendation for the location (one-seventh of the night up north).
+ */
+export function resolveHighLatitudeRule(setting: HighLatitudeSetting, latitude: number, longitude: number) {
+  return setting === "auto"
+    ? HighLatitudeRule.recommended(new Coordinates(latitude, longitude))
+    : setting;
+}
+
+const ORDER = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"] as const;
+
+/** Every time is a real time and they run Fajr → Isha in order. */
+function isUsable(set: PrayerSet) {
+  return ORDER.every((key, index) => {
+    const time = set[key].getTime();
+    return !Number.isNaN(time) && (index === 0 || time > set[ORDER[index - 1]].getTime());
+  });
+}
+
+/**
+ * Nearest latitudes to fall back to, closest first, when a day can't be computed properly
+ * (polar night or midnight sun): the classic "aqrab al-bilād" — nearest place with normal days.
+ */
+const FALLBACK_LATITUDES = [65, 60, 55, 50, 45];
+
+function computeAt(
   date: Date,
   latitude: number,
   longitude: number,
   method: MethodKey,
   madhab: MadhabKey,
-  adjustments?: PrayerAdjustmentSettings
+  adjustments: PrayerAdjustmentSettings | undefined,
+  highLatitude: HighLatitudeSetting,
+  offsets: TimeOffsets | undefined
 ): PrayerSet {
   const coordinates = new Coordinates(latitude, longitude);
   const params = buildCalculationParameters(method, adjustments);
   params.madhab = madhab === "hanafi" ? Madhab.Hanafi : Madhab.Shafi;
+  params.highLatitudeRule = resolveHighLatitudeRule(highLatitude, latitude, longitude);
+  // Inside the polar circles some days have no sunrise or sunset: borrow the nearest day that does.
+  params.polarCircleResolution = PolarCircleResolution.AqrabYaum;
+  if (offsets) {
+    params.adjustments = { ...offsets };
+  }
   const prayerTimes = new PrayerTimes(coordinates, date, params);
 
   return {
@@ -35,81 +61,33 @@ export function buildPrayerTimes(
   };
 }
 
-export function buildPrayerMarkers(prayers: PrayerSet): PrayerMarker[] {
-  return [
-    { label: "Fajr", value: prayers.fajr },
-    { label: "Sunrise", value: prayers.sunrise },
-    { label: "Dhuhr", value: prayers.dhuhr },
-    { label: "Asr", value: prayers.asr },
-    { label: "Maghrib", value: prayers.maghrib },
-    { label: "Isha", value: prayers.isha },
-  ];
-}
-
-export function nextPrayerInfo(prayers: PrayerMarker[], now: Date) {
-  const upcoming = prayers.find((p) => p.value.getTime() > now.getTime());
-  if (upcoming) return upcoming;
-  return { label: "Fajr", value: new Date(prayers[0].value.getTime() + 86400000) };
-}
-
-export function buildYearlyPrayerSeries(
-  year: number,
+export function buildPrayerTimes(
+  date: Date,
   latitude: number,
   longitude: number,
-  timeZone: string,
   method: MethodKey,
-  madhab: MadhabKey
-): YearlyPrayerRow[] {
-  const rows: YearlyPrayerRow[] = [];
-  const cursor = new Date(year, 0, 1);
+  madhab: MadhabKey,
+  adjustments?: PrayerAdjustmentSettings,
+  highLatitude: HighLatitudeSetting = "auto",
+  offsets?: TimeOffsets
+): PrayerSet {
+  const times = computeAt(date, latitude, longitude, method, madhab, adjustments, highLatitude, offsets);
+  if (isUsable(times)) return times;
 
-  while (cursor.getFullYear() === year) {
-    const day = getDateInTimeZone(cursor, timeZone);
-    const prayers = buildPrayerTimes(day, latitude, longitude, method, madhab);
-
-    rows.push({
-      date: day,
-      dayOfYear: rows.length + 1,
-      label: formatDateLabel(day, timeZone),
-      fajrMinutes: minutesSinceMidnight(prayers.fajr, timeZone),
-      sunriseMinutes: minutesSinceMidnight(prayers.sunrise, timeZone),
-      dhuhrMinutes: minutesSinceMidnight(prayers.dhuhr, timeZone),
-      asrMinutes: minutesSinceMidnight(prayers.asr, timeZone),
-      maghribMinutes: minutesSinceMidnight(prayers.maghrib, timeZone),
-      ishaMinutes: minutesSinceMidnight(prayers.isha, timeZone),
-      fastingMinutes: minuteDiff(prayers.maghrib, prayers.fajr),
-      daylightMinutes: minuteDiff(prayers.maghrib, prayers.sunrise),
-    });
-
-    cursor.setDate(cursor.getDate() + 1);
+  // Keep the longitude (so noon stays right) and move toward the equator until the day works.
+  for (const fallback of FALLBACK_LATITUDES) {
+    if (Math.abs(latitude) <= fallback) continue;
+    const candidate = computeAt(
+      date,
+      Math.sign(latitude) * fallback,
+      longitude,
+      method,
+      madhab,
+      adjustments,
+      highLatitude,
+      offsets
+    );
+    if (isUsable(candidate)) return candidate;
   }
-
-  return rows;
-}
-
-export function getYearlyPrayerExtremes(rows: YearlyPrayerRow[]): YearlyPrayerExtremes | null {
-  const [first] = rows;
-
-  if (!first) {
-    return null;
-  }
-
-  return rows.reduce<YearlyPrayerExtremes>(
-    (acc, row) => ({
-      earliestFajr:
-        row.fajrMinutes < acc.earliestFajr.fajrMinutes ? row : acc.earliestFajr,
-      latestFajr:
-        row.fajrMinutes > acc.latestFajr.fajrMinutes ? row : acc.latestFajr,
-      longestFast:
-        row.fastingMinutes > acc.longestFast.fastingMinutes ? row : acc.longestFast,
-      shortestFast:
-        row.fastingMinutes < acc.shortestFast.fastingMinutes ? row : acc.shortestFast,
-    }),
-    {
-      earliestFajr: first,
-      latestFajr: first,
-      longestFast: first,
-      shortestFast: first,
-    }
-  );
+  return times;
 }

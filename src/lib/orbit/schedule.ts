@@ -1,5 +1,5 @@
 import { buildPrayerTimes } from "./prayer";
-import type { PrayerAdjustmentSettings } from "./settings";
+import type { HighLatitudeSetting, PrayerAdjustmentSettings, TimeOffsets } from "./settings";
 import type { MadhabKey, MethodKey, PrayerSet } from "./types";
 
 export const PRAYER_KEYS = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"] as const;
@@ -60,7 +60,9 @@ export function createPrayerCalculator(
   longitude: number,
   method: MethodKey,
   madhab: MadhabKey,
-  adjustments?: PrayerAdjustmentSettings
+  adjustments?: PrayerAdjustmentSettings,
+  highLatitude: HighLatitudeSetting = "auto",
+  offsets?: TimeOffsets
 ): PrayerCalculator {
   const cache = new Map<string, PrayerSet>();
 
@@ -78,7 +80,9 @@ export function createPrayerCalculator(
       longitude,
       method,
       madhab,
-      adjustments
+      adjustments,
+      highLatitude,
+      offsets
     );
     cache.set(key, times);
     return times;
@@ -90,45 +94,37 @@ export function getPrayerTimeline(
   today: Date,
   calc: PrayerCalculator
 ): PrayerTimeline {
-  const todayTimes = calc(today);
   const nowMs = now.getTime();
+  const yesterday = shiftDay(today, -1);
+  const tomorrow = shiftDay(today, 1);
+  const todayTimes = calc(today);
+  const tomorrowTimes = calc(tomorrow);
+  const yesterdayTimes = calc(yesterday);
 
-  const nextIndex = PRAYER_KEYS.findIndex(
-    (key) => isValidTime(todayTimes[key]) && todayTimes[key].getTime() > nowMs
-  );
+  // Every moment around now, in time order. Yesterday is included because far north in summer
+  // its Maghrib and Isha can fall after midnight.
+  const moments = [
+    ...PRAYER_KEYS.map((key) => ({ day: yesterday, key, time: yesterdayTimes[key] })),
+    ...PRAYER_KEYS.map((key) => ({ day: today, key, time: todayTimes[key] })),
+    ...PRAYER_KEYS.map((key) => ({ day: tomorrow, key, time: tomorrowTimes[key] })),
+  ]
+    .filter((moment) => isValidTime(moment.time))
+    .sort((a, b) => a.time.getTime() - b.time.getTime());
+
+  const nextIndex = moments.findIndex((moment) => moment.time.getTime() > nowMs);
+  const next = moments[nextIndex] ?? { day: tomorrow, key: "fajr" as PrayerKey, time: tomorrowTimes.fajr };
+  const current = moments[nextIndex - 1] ?? moments[0];
 
   // Once Isha starts, the day is effectively over: show tomorrow so the next Fajr is visible.
-  // (Also the fallback when no time is left today, e.g. invalid times at high latitudes.)
-  if (nowMs >= todayTimes.isha.getTime() || nextIndex === -1) {
-    const tomorrow = shiftDay(today, 1);
-    const tomorrowTimes = calc(tomorrow);
-    const nextKey = PRAYER_KEYS.find((key) => isValidTime(tomorrowTimes[key])) ?? "dhuhr";
-    const currentKey =
-      [...PRAYER_KEYS].reverse().find((key) => isValidTime(todayTimes[key])) ?? "isha";
-
-    return {
-      day: tomorrow,
-      times: tomorrowTimes,
-      rolledOver: true,
-      current: { key: currentKey, time: todayTimes[currentKey] },
-      next: { key: nextKey, time: tomorrowTimes[nextKey] },
-    };
-  }
-
-  const nextKey = PRAYER_KEYS[nextIndex];
-  const previousKey = PRAYER_KEYS.slice(0, nextIndex)
-    .reverse()
-    .find((key) => isValidTime(todayTimes[key]));
-  const current: PrayerMoment = previousKey
-    ? { key: previousKey, time: todayTimes[previousKey] }
-    : { key: "isha", time: calc(shiftDay(today, -1)).isha };
+  const rolledOver =
+    next.day === tomorrow || (isValidTime(todayTimes.isha) && nowMs >= todayTimes.isha.getTime());
 
   return {
-    day: today,
-    times: todayTimes,
-    rolledOver: false,
-    current,
-    next: { key: nextKey, time: todayTimes[nextKey] },
+    day: rolledOver ? tomorrow : today,
+    times: rolledOver ? tomorrowTimes : todayTimes,
+    rolledOver,
+    current: { key: current.key, time: current.time },
+    next: { key: next.key, time: next.time },
   };
 }
 

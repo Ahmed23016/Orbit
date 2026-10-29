@@ -1,19 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 import "./App.css";
 
-import { MonthView } from "@/components/orbit/MonthView";
-import { QiblaView } from "@/components/orbit/QiblaView";
-import { SettingsView } from "@/components/orbit/SettingsView";
+import type { PracticeSection } from "@/components/orbit/PracticeView";
 import { TabBar, type TabKey } from "@/components/orbit/TabBar";
 import { TodayView } from "@/components/orbit/TodayView";
 
 import { useNow } from "@/hooks/orbit/useNow";
+import { usePrayedPlaces } from "@/hooks/orbit/usePrayedPlaces";
 import { usePrayerTracker } from "@/hooks/orbit/usePrayerTracker";
 import { useSettings } from "@/hooks/useSettings";
 
-import { locationPresets } from "@/lib/orbit/constants";
+import { defaultAdhkarSession, type AdhkarSession } from "@/lib/orbit/adhkar";
+import { calculationMethods, getMethodDetails, locationPresets } from "@/lib/orbit/constants";
 import {
   getCurrentPosition,
   getLocationErrorMessage,
@@ -23,6 +24,8 @@ import {
 } from "@/lib/orbit/location";
 import {
   createPrayerCalculator,
+  dayKey,
+  getPrayerDay,
   getPrayerTimeline,
   prayerLabel,
   type PrayerCalculator,
@@ -30,9 +33,20 @@ import {
 import { SKY_GRADIENTS, getSkyPhase } from "@/lib/orbit/sky";
 import { formatCountdown, getDateInTimeZone } from "@/lib/orbit/time";
 import type { LocationPreset, PresetKey } from "@/lib/orbit/types";
+import { syncAutoSilent, syncWidget } from "@/services/nativeBridge";
 import { syncPrayerNotifications } from "@/services/prayerNotifications";
 
 const MAX_RECENT_LOCATIONS = 4;
+
+// Today loads first; the other tabs load on first visit.
+const MonthView = lazy(() => import("@/components/orbit/MonthView").then((m) => ({ default: m.MonthView })));
+const PracticeView = lazy(() =>
+  import("@/components/orbit/PracticeView").then((m) => ({ default: m.PracticeView }))
+);
+const QiblaView = lazy(() => import("@/components/orbit/QiblaView").then((m) => ({ default: m.QiblaView })));
+const SettingsView = lazy(() =>
+  import("@/components/orbit/SettingsView").then((m) => ({ default: m.SettingsView }))
+);
 
 /** Soft ambient light at the top of the screen, tinted by the time of day. */
 function SkyGlow({ calc, timeZone }: { calc: PrayerCalculator; timeZone: string }) {
@@ -88,11 +102,14 @@ export default function App() {
   const { settings, updateSettings, resetSettings, isReady } = useSettings();
   const prefersDark = usePrefersDark();
   const [tab, setTab] = useState<TabKey>("today");
+  const [practiceSection, setPracticeSection] = useState<PracticeSection>("tasbih");
+  const [adhkarSession, setAdhkarSession] = useState<AdhkarSession | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationStatusMessage, setLocationStatusMessage] = useState("");
   const [locationErrorMessage, setLocationErrorMessage] = useState("");
   const locatingRef = useRef(false);
   const tracker = usePrayerTracker();
+  const prayedPlaces = usePrayedPlaces();
 
   const resolvedTheme =
     settings.theme === "system" ? (prefersDark ? "dark" : "light") : settings.theme;
@@ -113,9 +130,19 @@ export default function App() {
         coords.longitude,
         settings.prayerMethod,
         settings.madhab,
-        settings.prayerAdjustments
+        settings.prayerAdjustments,
+        settings.highLatitude,
+        settings.timeOffsets
       ),
-    [coords.latitude, coords.longitude, settings.prayerMethod, settings.madhab, settings.prayerAdjustments]
+    [
+      coords.latitude,
+      coords.longitude,
+      settings.prayerMethod,
+      settings.madhab,
+      settings.prayerAdjustments,
+      settings.highLatitude,
+      settings.timeOffsets,
+    ]
   );
 
   const altAsrCalc = useMemo(
@@ -125,9 +152,19 @@ export default function App() {
         coords.longitude,
         settings.prayerMethod,
         settings.madhab === "hanafi" ? "shafi" : "hanafi",
-        settings.prayerAdjustments
+        settings.prayerAdjustments,
+        settings.highLatitude,
+        settings.timeOffsets
       ),
-    [coords.latitude, coords.longitude, settings.prayerMethod, settings.madhab, settings.prayerAdjustments]
+    [
+      coords.latitude,
+      coords.longitude,
+      settings.prayerMethod,
+      settings.madhab,
+      settings.prayerAdjustments,
+      settings.highLatitude,
+      settings.timeOffsets,
+    ]
   );
 
   useEffect(() => {
@@ -153,6 +190,8 @@ export default function App() {
         timeZone: coords.timeZone,
         hour12,
         locationLabel: coords.label,
+        jamaah: settings.jamaah,
+        adhkarReminders: settings.adhkarReminders.enabled,
       });
     const onVisibility = () => {
       if (document.visibilityState === "visible") sync();
@@ -161,7 +200,70 @@ export default function App() {
     sync();
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [isReady, calc, coords.timeZone, coords.label, settings.notifications, hour12]);
+  }, [
+    isReady,
+    calc,
+    coords.timeZone,
+    coords.label,
+    settings.notifications,
+    settings.jamaah,
+    settings.adhkarReminders.enabled,
+    hour12,
+  ]);
+
+  // Android extras: the home-screen widget and auto-silent read a week of times.
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    const sync = () => {
+      const input = {
+        calc,
+        today: getDateInTimeZone(new Date(), coords.timeZone),
+        timeZone: coords.timeZone,
+        hour12,
+        locationLabel: coords.label,
+        jamaah: settings.jamaah,
+      };
+      void syncWidget(input);
+      void syncAutoSilent({ ...input, settings: settings.autoSilent });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+
+    sync();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [isReady, calc, coords.timeZone, coords.label, hour12, settings.jamaah, settings.autoSilent]);
+
+  // Tapping an adhkār reminder opens the right list.
+  useEffect(() => {
+    const listener = LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+      const extra = event.notification.extra as { open?: string; session?: AdhkarSession } | undefined;
+      if (extra?.open === "adhkar") {
+        setPracticeSection("adhkar");
+        setAdhkarSession(extra.session ?? null);
+        setTab("practice");
+      }
+    });
+    return () => {
+      void listener.then((handle) => handle.remove()).catch(() => {});
+    };
+  }, []);
+
+  const methodInfo = useMemo(() => {
+    const details = getMethodDetails(settings.prayerMethod, settings.prayerAdjustments);
+    return {
+      label: settings.prayerAdjustments.enabled
+        ? `${calculationMethods[settings.prayerMethod].label} (custom)`
+        : calculationMethods[settings.prayerMethod].label,
+      fajrAngle: details.fajrAngle,
+      ishaAngle: details.ishaAngle,
+      ishaInterval: details.ishaInterval,
+    };
+  }, [settings.prayerMethod, settings.prayerAdjustments]);
 
   const changeTab = useCallback((next: TabKey) => {
     setTab(next);
@@ -275,8 +377,23 @@ export default function App() {
     <div className="orbit-app">
       <SkyGlow calc={calc} timeZone={coords.timeZone} />
       <main className="orbit-main relative mx-auto w-full max-w-xl">
+        <Suspense
+          fallback={
+            <div className="grid h-60 place-items-center">
+              <LoaderCircle className="h-5 w-5 animate-spin text-o-accent" aria-label="Loading" />
+            </div>
+          }
+        >
         {tab === "today" ? (
           <TodayView
+            latitude={coords.latitude}
+            longitude={coords.longitude}
+            jamaah={settings.jamaah}
+            method={methodInfo}
+            onStartTasbih={() => {
+              setPracticeSection("tasbih");
+              changeTab("practice");
+            }}
             calc={calc}
             altAsrCalc={altAsrCalc}
             madhab={settings.madhab}
@@ -290,7 +407,17 @@ export default function App() {
             tracker={{
               enabled: settings.showTracker,
               getDone: tracker.getDone,
-              toggle: tracker.toggle,
+              toggle: (day, prayer) => {
+                const wasDone = tracker.getDone(day).includes(prayer);
+                tracker.toggle(day, prayer);
+                // Remember where you prayed, for the Qibla history — but only for the current
+                // prayer day: ticking off past days doesn't mean you prayed them here.
+                const now = new Date();
+                const prayerDay = getPrayerDay(now, getDateInTimeZone(now, coords.timeZone), calc);
+                if (!wasDone && dayKey(day) === dayKey(prayerDay)) {
+                  prayedPlaces.record(coords, `${dayKey(day)}:${prayer}`);
+                }
+              },
             }}
           />
         ) : tab === "calendar" ? (
@@ -301,6 +428,20 @@ export default function App() {
             hijriMethod={settings.hijriMethod}
             hijriAdjustment={settings.hijriAdjustment}
             hour12={hour12}
+            latitude={coords.latitude}
+            longitude={coords.longitude}
+          />
+        ) : tab === "practice" ? (
+          <PracticeView
+            section={practiceSection}
+            onSectionChange={setPracticeSection}
+            adhkarSession={
+              adhkarSession ??
+              (() => {
+                const today = calc(getDateInTimeZone(new Date(), coords.timeZone));
+                return defaultAdhkarSession(new Date(), today.fajr, today.asr);
+              })()
+            }
           />
         ) : tab === "qibla" ? (
           <QiblaView
@@ -308,6 +449,9 @@ export default function App() {
             longitude={coords.longitude}
             timeZone={coords.timeZone}
             locationLabel={coords.label}
+            hour12={hour12}
+            places={prayedPlaces.places}
+            onRemovePlace={prayedPlaces.remove}
           />
         ) : (
           <SettingsView
@@ -323,6 +467,7 @@ export default function App() {
             locationErrorMessage={locationErrorMessage}
           />
         )}
+        </Suspense>
       </main>
 
       <TabBar value={tab} onChange={changeTab} />

@@ -4,4 +4,9 @@
     <string name="title_activity_main">Orbit</string>
     <string name="package_name">com.orbit.prayertimes</string>
     <string name="custom_url_scheme">com.orbit.prayertimes</string>
+    <string name="widget_description">Next prayer with a live countdown</string>
+    <string name="sky_widget_description">The sun and moon on their arc, with the next prayer</string>
+    <string name="ring_widget_description">A ring that fills up toward the next prayer</string>
+    <string name="sky_widget_label">Orbit · Sky</string>
+    <string name="ring_widget_label">Orbit · Countdown</string>
 </resources>

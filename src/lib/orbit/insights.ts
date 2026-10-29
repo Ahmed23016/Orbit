@@ -1,9 +1,9 @@
+import { nextMoonPhase } from "./celestial";
 import { computeMoonData } from "./moon";
 import { getNightTimes, shiftDay, type PrayerCalculator, type PrayerKey } from "./schedule";
 import { minuteDiff } from "./time";
 
 const MINUTE = 60000;
-const LUNAR_CYCLE_DAYS = 29.53058867;
 
 function offset(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * MINUTE);
@@ -63,14 +63,15 @@ export function getDayLength(day: Date, calc: PrayerCalculator) {
 
 export function getMoonInsights(day: Date) {
   const moon = computeMoonData(day);
-  const daysToFull = (((0.5 - moon.phase) % 1) + 1) % 1 * LUNAR_CYCLE_DAYS;
-  const daysToNew = (((1 - moon.phase) % 1) + 1) % 1 * LUNAR_CYCLE_DAYS;
+  const nextFull = nextMoonPhase(day, 180);
+  const nextNew = nextMoonPhase(day, 0);
+  const daysUntil = (date: Date) => Math.max(0, Math.round((date.getTime() - day.getTime()) / 86400000));
 
   return {
     ...moon,
-    nextFull: new Date(day.getTime() + daysToFull * 86400000),
-    nextNew: new Date(day.getTime() + daysToNew * 86400000),
-    daysToFull: Math.round(daysToFull),
-    daysToNew: Math.round(daysToNew),
+    nextFull,
+    nextNew,
+    daysToFull: daysUntil(nextFull),
+    daysToNew: daysUntil(nextNew),
   };
 }

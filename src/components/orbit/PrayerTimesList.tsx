@@ -32,6 +32,8 @@ type PrayerTimesListProps = {
   now?: Date;
   /** When each time ends, shown under its name. */
   windows?: Record<PrayerKey, Date>;
+  /** Congregation times, shown under the adhan time. */
+  jamaah?: Partial<Record<PrayerKey, Date | null>>;
 };
 
 export function PrayerTimesList({
@@ -42,6 +44,7 @@ export function PrayerTimesList({
   highlight,
   now,
   windows,
+  jamaah,
 }: PrayerTimesListProps) {
   return (
     <ul className="px-2 pb-2">
@@ -91,15 +94,22 @@ export function PrayerTimesList({
               ) : null}
             </span>
 
-            <span
-              className={cn(
-                "text-[15px] tabular-nums",
-                isSunrise ? "text-o-muted" : "font-medium text-o-text",
-                isHighlighted && "font-semibold text-o-accent",
-                isPast && "text-o-muted"
-              )}
-            >
-              {formatClock(times[key], timeZone, hour12)}
+            <span className="text-right">
+              <span
+                className={cn(
+                  "block text-[15px] tabular-nums",
+                  isSunrise ? "text-o-muted" : "font-medium text-o-text",
+                  isHighlighted && "font-semibold text-o-accent",
+                  isPast && "text-o-muted"
+                )}
+              >
+                {formatClock(times[key], timeZone, hour12)}
+              </span>
+              {jamaah?.[key] ? (
+                <span className="block text-[11px] text-o-faint tabular-nums">
+                  Jamāʿah {formatClock(jamaah[key]!, timeZone, hour12)}
+                </span>
+              ) : null}
             </span>
           </li>
         );

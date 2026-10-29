@@ -1,6 +1,8 @@
-import { Check } from "lucide-react";
+import type { KeyboardEvent, ReactNode } from "react";
+import { Check, ChevronRight } from "lucide-react";
 
 import { prayerLabel, type PrayerMoment } from "@/lib/orbit/schedule";
+import type { Season } from "@/lib/orbit/seasons";
 import { SKY_GRADIENTS, type SkyArc, type SkyPhase } from "@/lib/orbit/sky";
 import { formatClock, formatCountdown } from "@/lib/orbit/time";
 import { cn } from "@/lib/utils";
@@ -18,6 +20,10 @@ type SkyHeroProps = {
   hour12: boolean;
   /** Present when the current prayer can be marked as prayed. */
   prayed?: { done: boolean; onToggle: () => void };
+  /** Congregation time for the next prayer, if the user set one. */
+  jamaah?: Date | null;
+  season?: Season | null;
+  onOpenSky?: () => void;
 };
 
 // Arc geometry inside a 320×120 viewBox: half-ellipse centred at (160, 96).
@@ -52,6 +58,63 @@ const STARS = [
   [184, 40, 0.4],
 ] as const;
 
+/** Seasonal decorations drawn inside the arc's 320×118 viewBox. */
+function SeasonArt({ kind }: { kind: Season["kind"] }): ReactNode {
+  if (kind === "ramadan" || kind === "qadr") {
+    return (
+      <g className="orbit-sway" style={{ transformOrigin: "296px 0px" }}>
+        {[
+          [22, 26, 0],
+          [298, 34, 1],
+        ].map(([x, length, delay]) => (
+          <g key={x} style={{ animationDelay: `${delay}s` }}>
+            <line x1={x} x2={x} y1="0" y2={length} stroke="#f3d79a" strokeOpacity="0.7" />
+            <path
+              d={`M${x - 6} ${length + 4} h12 l-2 14 h-8 z`}
+              fill="#e3bd72"
+              fillOpacity="0.9"
+            />
+            <rect x={x - 3} y={length} width="6" height="4" rx="1" fill="#f3d79a" />
+            <circle cx={x} cy={length + 11} r="2.5" fill="#fff4cf" />
+            <circle cx={x} cy={length + 11} r="8" fill="#fff4cf" fillOpacity="0.18" />
+          </g>
+        ))}
+      </g>
+    );
+  }
+
+  if (kind === "eid") {
+    return (
+      <g>
+        {[
+          [30, 26, 7],
+          [52, 50, 4],
+          [286, 24, 8],
+          [266, 52, 5],
+          [118, 16, 3.5],
+          [206, 12, 4],
+        ].map(([x, y, r], index) => (
+          <path
+            key={index}
+            className="orbit-twinkle"
+            style={{ animationDelay: `${index * 0.4}s`, transformOrigin: `${x}px ${y}px` }}
+            d={`M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r}Z`}
+            fill={index % 2 ? "#fff4cf" : "#e3bd72"}
+          />
+        ))}
+      </g>
+    );
+  }
+
+  // Dhuʻl-Hijjah and Arafah: the Kaaba resting on the horizon beneath the sky.
+  return (
+    <g opacity="0.95">
+      <rect x="151" y="78" width="18" height="18" rx="1.5" fill="#0b0d12" stroke="#e3bd72" strokeWidth="1" />
+      <rect x="151" y="82" width="18" height="2.5" fill="#e3bd72" />
+    </g>
+  );
+}
+
 export function SkyHero({
   now,
   phase,
@@ -64,6 +127,9 @@ export function SkyHero({
   timeZone,
   hour12,
   prayed,
+  jamaah,
+  season,
+  onOpenSky,
 }: SkyHeroProps) {
   const isNight = phase === "night" || phase === "dusk" || phase === "dawn";
   const body = arc ? arcPoint(arc.t) : null;
@@ -71,17 +137,30 @@ export function SkyHero({
 
   return (
     <section
-      className="relative overflow-hidden rounded-[28px] p-5 text-white shadow-[0_18px_40px_-18px_rgba(10,20,50,0.55)] transition-[background] duration-1000"
+      role={onOpenSky ? "button" : undefined}
+      tabIndex={onOpenSky ? 0 : undefined}
+      onClick={onOpenSky}
+      onKeyDown={(event: KeyboardEvent) => {
+        if (onOpenSky && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onOpenSky();
+        }
+      }}
+      className={cn(
+        "relative overflow-hidden rounded-[28px] p-5 text-white shadow-[0_18px_40px_-18px_rgba(10,20,50,0.55)] transition-[background,transform] duration-1000 outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+        onOpenSky && "cursor-pointer active:scale-[0.99] active:duration-100"
+      )}
       style={{ background: SKY_GRADIENTS[phase].background }}
-      aria-label={`Next prayer ${nextName} at ${formatClock(next.time, timeZone, hour12)}`}
+      aria-label={`Next prayer ${nextName} at ${formatClock(next.time, timeZone, hour12)}${onOpenSky ? ". Open the sky view" : ""}`}
     >
       <div className="flex items-center justify-between text-[11px] font-medium tracking-[0.14em] text-white/70 uppercase">
         <span>
           {next.key === "sunrise" ? "Fajr ends" : "Next prayer"}
           {rolledOver ? " · tomorrow" : ""}
         </span>
-        <span className="tracking-normal tabular-nums normal-case">
+        <span className="flex items-center gap-0.5 tracking-normal tabular-nums normal-case">
           {formatClock(now, timeZone, hour12)}
+          {onOpenSky ? <ChevronRight className="h-3.5 w-3.5 text-white/60" /> : null}
         </span>
       </div>
 
@@ -92,8 +171,20 @@ export function SkyHero({
         </div>
       </div>
 
-      <div className="mt-3 inline-flex h-7 items-center rounded-full bg-white/15 px-3 text-sm font-medium tabular-nums backdrop-blur-sm">
-        in {formatCountdown(next.time, now)}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="inline-flex h-7 items-center rounded-full bg-white/15 px-3 text-sm font-medium tabular-nums backdrop-blur-sm">
+          in {formatCountdown(next.time, now)}
+        </div>
+        {jamaah ? (
+          <div className="inline-flex h-7 items-center rounded-full bg-white/10 px-3 text-xs font-medium tabular-nums text-white/85">
+            Jamāʿah {formatClock(jamaah, timeZone, hour12)}
+          </div>
+        ) : null}
+        {season ? (
+          <div className="inline-flex h-7 items-center rounded-full bg-[#e3bd72]/25 px-3 text-xs font-semibold text-[#fff4cf]">
+            {season.label}
+          </div>
+        ) : null}
       </div>
 
       {arc ? (
@@ -105,7 +196,9 @@ export function SkyHero({
             </radialGradient>
           </defs>
 
-          {isNight
+          {season ? <SeasonArt kind={season.kind} /> : null}
+
+          {isNight || season?.kind === "qadr"
             ? STARS.map(([x, y, opacity]) => (
                 <circle key={`${x}-${y}`} cx={x} cy={y} r="1" fill="#fff" opacity={opacity * 0.7} />
               ))
@@ -188,7 +281,11 @@ export function SkyHero({
         {prayed ? (
           <button
             type="button"
-            onClick={prayed.onToggle}
+            onClick={(event) => {
+              event.stopPropagation();
+              prayed.onToggle();
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
             aria-pressed={prayed.done}
             className={cn(
               "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition active:scale-95",

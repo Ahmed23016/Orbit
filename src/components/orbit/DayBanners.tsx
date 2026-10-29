@@ -1,9 +1,11 @@
-import { BookOpen, MoonStar, PartyPopper, Sparkles, UtensilsCrossed } from "lucide-react";
+import { useMemo } from "react";
+import { BookOpen, ChevronRight, Moon, MoonStar, PartyPopper, Sparkles, UtensilsCrossed } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Panel } from "@/components/orbit/primitives";
 import { getIslamicEvents, isRamadan, isWhiteDay } from "@/lib/orbit/events";
-import { shiftDay, type PrayerCalculator } from "@/lib/orbit/schedule";
+import { dayKey, isSameDay, shiftDay, type PrayerCalculator } from "@/lib/orbit/schedule";
+import { getCrescentWatch } from "@/lib/orbit/sighting";
 import { formatClock, formatCountdown, getHijriParts } from "@/lib/orbit/time";
 import type { HijriMethodKey } from "@/lib/orbit/types";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,9 @@ type DayBannersProps = {
   hour12: boolean;
   hijriMethod: HijriMethodKey;
   hijriAdjustment: number;
+  latitude: number;
+  longitude: number;
+  onOpenSky: () => void;
 };
 
 type Banner = { key: string; icon: LucideIcon; title: string; body: string; strong?: boolean };
@@ -27,13 +32,15 @@ function RamadanCard({
   timeZone,
   hour12,
   ramadanDay,
-}: Omit<DayBannersProps, "hijriMethod" | "hijriAdjustment"> & { ramadanDay: number | null }) {
-  const todayTimes = calc(today);
+}: Pick<DayBannersProps, "now" | "today" | "calc" | "timeZone" | "hour12"> & { ramadanDay: number | null }) {
   const nowMs = now.getTime();
-  const afterIftar = nowMs >= todayTimes.maghrib.getTime();
-  const suhoor = afterIftar ? calc(shiftDay(today, 1)).fajr : todayTimes.fajr;
-  const iftar = todayTimes.maghrib;
-  const fasting = nowMs >= todayTimes.fajr.getTime() && !afterIftar;
+  // On the eve of Ramadan, show the first fast (tomorrow); otherwise today's.
+  const fastDay = ramadanDay === null ? shiftDay(today, 1) : today;
+  const fastTimes = calc(fastDay);
+  const afterIftar = nowMs >= fastTimes.maghrib.getTime();
+  const suhoor = afterIftar ? calc(shiftDay(fastDay, 1)).fajr : fastTimes.fajr;
+  const iftar = afterIftar ? calc(shiftDay(fastDay, 1)).maghrib : fastTimes.maghrib;
+  const fasting = nowMs >= fastTimes.fajr.getTime() && !afterIftar;
   const items = [
     { label: "Suhoor ends", time: suhoor, active: !fasting },
     { label: "Iftar", time: iftar, active: fasting },
@@ -65,6 +72,49 @@ function RamadanCard({
         ))}
       </div>
     </Panel>
+  );
+}
+
+function CrescentBanner({
+  now,
+  today,
+  calc,
+  timeZone,
+  hour12,
+  latitude,
+  longitude,
+  onOpenSky,
+}: DayBannersProps) {
+  const todayKey = dayKey(today);
+  // Recomputed at most every ten minutes.
+  const tenMinutes = Math.floor(now.getTime() / 600000);
+  const tonight = useMemo(() => {
+    const watch = getCrescentWatch(new Date(tenMinutes * 600000), calc, latitude, longitude, timeZone);
+    return watch.evenings.find((evening) => isSameDay(evening.day, today)) ?? null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayKey, tenMinutes, calc, latitude, longitude, timeZone]);
+
+  if (!tonight || tonight.forecast.verdict === "impossible" || now.getTime() > tonight.sunset.getTime() + 2 * 3600000) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpenSky}
+      className="flex items-center gap-3.5 rounded-3xl border border-o-line bg-o-surface p-4 text-left transition active:scale-[0.99]"
+    >
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-o-accent-soft text-o-accent">
+        <Moon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold">Crescent watch tonight · {tonight.forecast.title}</span>
+        <span className="mt-0.5 block text-sm text-o-muted">
+          Look low in the west after Maghrib ({formatClock(tonight.sunset, timeZone, hour12)}).
+        </span>
+      </span>
+      <ChevronRight className="h-5 w-5 shrink-0 text-o-faint" />
+    </button>
   );
 }
 
@@ -116,6 +166,8 @@ export function DayBanners(props: DayBannersProps) {
 
   return (
     <>
+      <CrescentBanner {...props} />
+
       {isRamadan(hijri) || ramadanTomorrow ? (
         <RamadanCard {...props} ramadanDay={ramadanTomorrow ? null : hijri.day} />
       ) : null}

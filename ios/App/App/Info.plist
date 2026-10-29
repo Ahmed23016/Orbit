@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Orbit shows the Qibla, sun and moon over your camera view so you can find the Qibla direction.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Orbit uses your location to calculate prayer times and Qibla for where you are.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

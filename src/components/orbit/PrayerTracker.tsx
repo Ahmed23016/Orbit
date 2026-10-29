@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Check, Flame } from "lucide-react";
 
-import { Panel } from "@/components/orbit/primitives";
+import { Constellation } from "@/components/orbit/Constellation";
+import { Panel, Segmented } from "@/components/orbit/primitives";
 import {
   FARD_KEYS,
   dayKey,
@@ -57,8 +58,14 @@ export function PrayerTracker({
   toggle,
 }: PrayerTrackerProps) {
   const [selectedKey, setSelectedKey] = useState(() => dayKey(prayerDay));
+  const [view, setView] = useState<"week" | "month">("week");
+  const [month, setMonth] = useState(() => new Date(prayerDay.getFullYear(), prayerDay.getMonth(), 1, 12));
   const days = Array.from({ length: 7 }, (_, index) => shiftDay(prayerDay, index - 6));
-  const selected = days.find((day) => dayKey(day) === selectedKey) ?? prayerDay;
+  const selected = (() => {
+    const [year, monthNumber, date] = selectedKey.split("-").map(Number);
+    const parsed = new Date(year, monthNumber - 1, date, 12);
+    return Number.isNaN(parsed.getTime()) || parsed.getTime() > prayerDay.getTime() ? prayerDay : parsed;
+  })();
   const isToday = isSameDay(selected, prayerDay);
   const selectedTimes = calc(selected);
   const done = getDone(selected);
@@ -80,16 +87,39 @@ export function PrayerTracker({
   return (
     <Panel className="px-4 py-4">
       <div className="flex items-center justify-between gap-3 px-1">
-        <div>
-          <div className="text-xs font-medium tracking-[0.12em] text-o-faint uppercase">
-            Prayer tracker
-          </div>
-          <div className="mt-0.5 text-[15px] font-semibold">
-            {isToday ? "Today" : formatDay(selected, { weekday: "long", day: "numeric", month: "short" })}
-            <span className="ml-1.5 font-normal text-o-muted tabular-nums">
-              {done.length}/{FARD_KEYS.length}
-            </span>
-          </div>
+        <div className="text-xs font-medium tracking-[0.12em] text-o-faint uppercase">
+          Prayer tracker
+        </div>
+        <Segmented
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "week", label: "Week" },
+            { value: "month", label: "Month" },
+          ]}
+          className="w-36"
+        />
+      </div>
+
+      {view === "month" ? (
+        <div className="mt-3">
+          <Constellation
+            month={month}
+            prayerDay={prayerDay}
+            selectedKey={dayKey(selected)}
+            getDone={getDone}
+            onSelect={(day) => setSelectedKey(dayKey(day))}
+            onMonthChange={setMonth}
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex items-center justify-between gap-3 px-1">
+        <div className="min-w-0 truncate text-[15px] font-semibold">
+          {isToday ? "Today" : formatDay(selected, { weekday: "long", day: "numeric", month: "short" })}
+          <span className="ml-1.5 font-normal text-o-muted tabular-nums">
+            {done.length}/{FARD_KEYS.length}
+          </span>
         </div>
         <button
           type="button"
@@ -145,50 +175,53 @@ export function PrayerTracker({
         })}
       </div>
 
-      <div className="mt-4 grid grid-cols-7 gap-1">
-        {days.map((day, index) => {
-          const isSelected = dayKey(day) === selectedKey || (index === 6 && !days.some((d) => dayKey(d) === selectedKey));
+      {view === "week" ? (
+        <>
+          <div className="mt-4 grid grid-cols-7 gap-1">
+            {days.map((day, index) => {
+              const isSelected = dayKey(day) === selectedKey || (index === 6 && !days.some((d) => dayKey(d) === selectedKey));
 
-          return (
-            <button
-              key={dayKey(day)}
-              type="button"
-              onClick={() => setSelectedKey(dayKey(day))}
-              aria-pressed={isSelected}
-              aria-label={`${formatDay(day, { weekday: "long" })}: ${counts[index]} of 5 prayed`}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-xl py-1.5 transition",
-                isSelected ? "bg-o-surface-2" : "hover:bg-o-surface-2/60"
-              )}
-            >
-              <Ring ratio={counts[index] / FARD_KEYS.length} />
-              <span
-                className={cn(
-                  "text-[11px]",
-                  isSelected ? "font-semibold text-o-text" : "text-o-faint",
-                  index === 6 && !isSelected && "text-o-accent"
-                )}
-              >
-                {formatDay(day, { weekday: "narrow" })}
+              return (
+                <button
+                  key={dayKey(day)}
+                  type="button"
+                  onClick={() => setSelectedKey(dayKey(day))}
+                  aria-pressed={isSelected}
+                  aria-label={`${formatDay(day, { weekday: "long" })}: ${counts[index]} of 5 prayed`}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-xl py-1.5 transition",
+                    isSelected ? "bg-o-surface-2" : "hover:bg-o-surface-2/60"
+                  )}
+                >
+                  <Ring ratio={counts[index] / FARD_KEYS.length} />
+                  <span
+                    className={cn(
+                      "text-[11px]",
+                      isSelected ? "font-semibold text-o-text" : "text-o-faint",
+                      index === 6 && !isSelected && "text-o-accent"
+                    )}
+                  >
+                    {formatDay(day, { weekday: "narrow" })}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex items-center justify-between px-1 text-xs text-o-muted tabular-nums">
+            <span>
+              {total}/{days.length * FARD_KEYS.length} this week
+            </span>
+            {streak > 0 ? (
+              <span className="flex items-center gap-1 font-medium text-o-accent">
+                <Flame className="h-3.5 w-3.5" />
+                {streak}-day streak
               </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-3 flex items-center justify-between px-1 text-xs text-o-muted tabular-nums">
-        <span>
-          {total}/{days.length * FARD_KEYS.length} this week
-        </span>
-        {streak > 0 ? (
-          <span className="flex items-center gap-1 font-medium text-o-accent">
-            <Flame className="h-3.5 w-3.5" />
-            {streak}-day streak
-          </span>
-        ) : (
-          <span className="text-o-faint">Tap a day to edit it</span>
-        )}
-      </div>
+            ) : (
+              <span className="text-o-faint">Tap a day to edit it</span>
+            )}
+          </div>
+        </>
+      ) : null}
     </Panel>
   );
 }

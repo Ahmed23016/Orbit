@@ -1,4 +1,5 @@
-import { ChevronRight, LoaderCircle, MapPin } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { ChevronRight, LoaderCircle, MapPin, Sparkles } from "lucide-react";
 
 import { DayBanners } from "@/components/orbit/DayBanners";
 import { DayInsights } from "@/components/orbit/DayInsights";
@@ -6,22 +7,43 @@ import { Panel } from "@/components/orbit/primitives";
 import { PrayerTimesList } from "@/components/orbit/PrayerTimesList";
 import { PrayerTracker } from "@/components/orbit/PrayerTracker";
 import { SkyHero } from "@/components/orbit/SkyHero";
+import { useNextOccasion } from "@/hooks/orbit/useNextOccasion";
 import { useNow } from "@/hooks/orbit/useNow";
-import { getUpcomingEvents } from "@/lib/orbit/events";
 import { getPrayerWindows } from "@/lib/orbit/insights";
+import { getJamaahTime } from "@/lib/orbit/jamaah";
 import {
   dayKey,
   getPrayerDay,
   getPrayerTimeline,
+  FARD_KEYS,
   shiftDay,
   type FardKey,
   type PrayerCalculator,
+  type PrayerKey,
 } from "@/lib/orbit/schedule";
+import { getSeason } from "@/lib/orbit/seasons";
+import type { JamaahSettings } from "@/lib/orbit/settings";
 import { getSkyArc, getSkyPhase } from "@/lib/orbit/sky";
 import { formatDay, formatHijri, getDateInTimeZone, getHijriParts } from "@/lib/orbit/time";
 import type { HijriMethodKey, MadhabKey } from "@/lib/orbit/types";
 
+const SkyView = lazy(() =>
+  import("@/components/orbit/SkyView").then((module) => ({ default: module.SkyView }))
+);
+
+export type MethodInfo = {
+  label: string;
+  fajrAngle: number;
+  ishaAngle: number;
+  ishaInterval: number;
+};
+
 type TodayViewProps = {
+  latitude: number;
+  longitude: number;
+  jamaah: JamaahSettings;
+  method: MethodInfo;
+  onStartTasbih: () => void;
   calc: PrayerCalculator;
   altAsrCalc: PrayerCalculator;
   madhab: MadhabKey;
@@ -42,6 +64,11 @@ type TodayViewProps = {
 const MADHAB_LABELS: Record<MadhabKey, string> = { shafi: "Standard", hanafi: "Hanafi" };
 
 export function TodayView({
+  latitude,
+  longitude,
+  jamaah,
+  method,
+  onStartTasbih,
   calc,
   altAsrCalc,
   madhab,
@@ -71,8 +98,23 @@ export function TodayView({
 
   const currentIsFard = current.key !== "sunrise";
   const doneToday = tracker.getDone(prayerDay);
+  const [skyOpen, setSkyOpen] = useState(false);
+  const [tasbihPrompt, setTasbihPrompt] = useState<string | null>(null);
 
-  const [nextEvent] = getUpcomingEvents(shiftDay(today, 1), hijriMethod, hijriAdjustment, 1);
+  useEffect(() => {
+    if (!tasbihPrompt) return;
+    const timeoutId = window.setTimeout(() => setTasbihPrompt(null), 15000);
+    return () => window.clearTimeout(timeoutId);
+  }, [tasbihPrompt]);
+
+  const season = getSeason(hijri, now.getTime() >= todayTimes.maghrib.getTime());
+  const jamaahFor = (key: PrayerKey, onDay: Date, adhan: Date) =>
+    key === "sunrise" ? null : getJamaahTime(key, onDay, adhan, jamaah, timeZone);
+  const listJamaah = Object.fromEntries(
+    FARD_KEYS.map((key) => [key, jamaahFor(key, day, times[key])])
+  ) as Partial<Record<PrayerKey, Date | null>>;
+
+  const nextEvent = useNextOccasion(dayKey(today), hijriMethod, hijriAdjustment);
 
   return (
     <div className="orbit-fade grid grid-cols-1 gap-4">
@@ -109,15 +151,42 @@ export function TodayView({
         rolledOver={rolledOver}
         timeZone={timeZone}
         hour12={hour12}
+        jamaah={jamaahFor(next.key, day, next.time)}
+        season={season}
+        onOpenSky={() => setSkyOpen(true)}
         prayed={
           tracker.enabled && currentIsFard
             ? {
                 done: doneToday.includes(current.key as FardKey),
-                onToggle: () => tracker.toggle(prayerDay, current.key as FardKey),
+                onToggle: () => {
+                  const wasDone = doneToday.includes(current.key as FardKey);
+                  tracker.toggle(prayerDay, current.key as FardKey);
+                  setTasbihPrompt(wasDone ? null : current.key);
+                },
               }
             : undefined
         }
       />
+
+      {tasbihPrompt ? (
+        <button
+          type="button"
+          onClick={() => {
+            setTasbihPrompt(null);
+            onStartTasbih();
+          }}
+          className="orbit-fade flex items-center gap-3 rounded-3xl border border-o-line bg-o-accent-soft p-4 text-left transition active:scale-[0.99]"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-o-accent text-o-on-accent">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold">Start the after-prayer tasbīḥ</span>
+            <span className="block text-sm text-o-muted">SubḥānAllāh, Alḥamdulillāh, Allāhu akbar</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-o-accent" />
+        </button>
+      ) : null}
 
       <DayBanners
         now={now}
@@ -127,6 +196,9 @@ export function TodayView({
         hour12={hour12}
         hijriMethod={hijriMethod}
         hijriAdjustment={hijriAdjustment}
+        latitude={latitude}
+        longitude={longitude}
+        onOpenSky={() => setSkyOpen(true)}
       />
 
       <Panel className="overflow-hidden">
@@ -144,6 +216,7 @@ export function TodayView({
           highlight={next.key}
           now={rolledOver ? undefined : now}
           windows={getPrayerWindows(day, calc)}
+          jamaah={listJamaah}
         />
       </Panel>
 
@@ -170,6 +243,25 @@ export function TodayView({
         hour12={hour12}
         nextEvent={nextEvent ? { ...nextEvent, daysAway: nextEvent.daysAway + 1 } : undefined}
       />
+
+      {skyOpen ? (
+        <Suspense fallback={null}>
+          <SkyView
+            onClose={() => setSkyOpen(false)}
+            calc={calc}
+            latitude={latitude}
+            longitude={longitude}
+            timeZone={timeZone}
+            locationLabel={locationLabel}
+            hour12={hour12}
+            madhab={madhab}
+            methodLabel={method.label}
+            fajrAngle={method.fajrAngle}
+            ishaAngle={method.ishaAngle}
+            ishaInterval={method.ishaInterval}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

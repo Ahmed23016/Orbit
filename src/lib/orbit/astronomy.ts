@@ -1,126 +1,41 @@
-import { clamp, degToRad, normalizeDegrees, radToDeg, shortestAngleDelta } from "./math";
+import { degToRad, normalizeDegrees, radToDeg, shortestAngleDelta } from "./math";
 
-export function dayOfYear(date: Date) {
-  const start = new Date(date.getFullYear(), 0, 0);
-  return Math.floor((date.getTime() - start.getTime()) / 86400000);
-}
+const KAABA_LAT = 21.4225;
+const KAABA_LNG = 39.8262;
 
-export function solarDeclination(n: number) {
-  return 23.44 * Math.sin(degToRad((360 / 365) * (n - 81)));
-}
-
-export function equationOfTime(n: number) {
-  const B = degToRad((360 / 365) * (n - 81));
-  return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
-}
-
-export function solarNoonMinutes(date: Date, longitude: number, timezoneOffsetMinutes: number) {
-  const n = dayOfYear(date);
-  const eot = equationOfTime(n);
-  return 720 - 4 * longitude - eot - timezoneOffsetMinutes;
-}
-
-export function solarAltitude(
-  date: Date,
-  latitude: number,
-  longitude: number,
-  minuteOfDay: number,
-  timezoneOffsetMinutes = -date.getTimezoneOffset()
-) {
-  const n = dayOfYear(date);
-  const decl = degToRad(solarDeclination(n));
-  const lat = degToRad(latitude);
-  const noon = solarNoonMinutes(date, longitude, timezoneOffsetMinutes);
-  const hourAngle = degToRad((minuteOfDay - noon) / 4);
-
-  const sinAlt =
-    Math.sin(lat) * Math.sin(decl) +
-    Math.cos(lat) * Math.cos(decl) * Math.cos(hourAngle);
-
-  return radToDeg(Math.asin(clamp(sinAlt, -1, 1)));
-}
-
-export function solarAzimuth(
-  date: Date,
-  latitude: number,
-  longitude: number,
-  minuteOfDay: number,
-  timezoneOffsetMinutes = -date.getTimezoneOffset()
-) {
-  const n = dayOfYear(date);
-  const decl = degToRad(solarDeclination(n));
-  const lat = degToRad(latitude);
-  const noon = solarNoonMinutes(date, longitude, timezoneOffsetMinutes);
-  const hourAngle = degToRad((minuteOfDay - noon) / 4);
-
-  const azimuth =
-    radToDeg(
-      Math.atan2(
-        Math.sin(hourAngle),
-        Math.cos(hourAngle) * Math.sin(lat) - Math.tan(decl) * Math.cos(lat)
-      )
-    ) + 180;
-
-  return normalizeDegrees(azimuth);
-}
-
+/** Great-circle bearing from true north to the Kaaba, in degrees (not rounded). */
 export function qiblaDirection(latitude: number, longitude: number) {
-  const makkahLat = degToRad(21.4225);
-  const makkahLon = degToRad(39.8262);
   const lat = degToRad(latitude);
-  const lon = degToRad(longitude);
-  const dLon = makkahLon - lon;
+  const dLon = degToRad(KAABA_LNG - longitude);
   const y = Math.sin(dLon);
-  const x = Math.cos(lat) * Math.tan(makkahLat) - Math.sin(lat) * Math.cos(dLon);
-  const brng = (radToDeg(Math.atan2(y, x)) + 360) % 360;
-  return Math.round(brng);
+  const x = Math.cos(lat) * Math.tan(degToRad(KAABA_LAT)) - Math.sin(lat) * Math.cos(dLon);
+  return normalizeDegrees(radToDeg(Math.atan2(y, x)));
+}
+
+/** Great-circle (haversine) distance in kilometres. */
+export function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const a1 = degToRad(lat1);
+  const a2 = degToRad(lat2);
+  const dLat = a2 - a1;
+  const dLon = degToRad(lng2 - lng1);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a1) * Math.cos(a2) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
 export function distanceToMakkahKm(latitude: number, longitude: number) {
-  const lat1 = degToRad(latitude);
-  const lat2 = degToRad(21.4225);
-  const dLat = lat2 - lat1;
-  const dLon = degToRad(39.8262 - longitude);
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  return Math.round(distanceKm(latitude, longitude, KAABA_LAT, KAABA_LNG));
 }
+
+const COMPASS_POINTS = [
+  "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+  "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+] as const;
 
 export function bearingToCompassPoint(bearing: number) {
-  const points = [
-    "N",
-    "NNE",
-    "NE",
-    "ENE",
-    "E",
-    "ESE",
-    "SE",
-    "SSE",
-    "S",
-    "SSW",
-    "SW",
-    "WSW",
-    "W",
-    "WNW",
-    "NW",
-    "NNW",
-  ] as const;
-
-  const index = Math.round(normalizeDegrees(bearing) / 22.5) % points.length;
-  return points[index];
+  return COMPASS_POINTS[Math.round(normalizeDegrees(bearing) / 22.5) % COMPASS_POINTS.length];
 }
 
-export function relativeDirectionLabel(delta: number) {
-  const abs = Math.abs(delta);
-
-  if (abs < 12) return "straight ahead";
-  if (abs < 40) return delta > 0 ? "ahead-right" : "ahead-left";
-  if (abs < 70) return delta > 0 ? "to your right" : "to your left";
-  if (abs < 110) return delta > 0 ? "to your right" : "to your left";
-  if (abs < 145) return delta > 0 ? "behind-right" : "behind-left";
-  return "behind you";
-}
-
+/** e.g. "36° south of east" — how to find a bearing from the nearest cardinal direction. */
 export function describeBearingFromCardinal(bearing: number) {
   const references = [
     { label: "north", bearing: 0, positive: "east", negative: "west" },
@@ -129,22 +44,14 @@ export function describeBearingFromCardinal(bearing: number) {
     { label: "west", bearing: 270, positive: "north", negative: "south" },
   ] as const;
 
-  const nearest = references.reduce((best, reference) => {
-    const delta = shortestAngleDelta(reference.bearing, bearing);
-    if (!best || Math.abs(delta) < Math.abs(best.delta)) {
-      return { ...reference, delta };
-    }
-    return best;
-  }, null as (typeof references)[number] & { delta: number } | null);
-
-  if (!nearest) {
-    return `${Math.round(normalizeDegrees(bearing))} deg`;
-  }
+  const nearest = references
+    .map((reference) => ({ ...reference, delta: shortestAngleDelta(reference.bearing, bearing) }))
+    .reduce((best, candidate) => (Math.abs(candidate.delta) < Math.abs(best.delta) ? candidate : best));
 
   const amount = Math.round(Math.abs(nearest.delta));
-  if (amount < 8) {
-    return `almost due ${nearest.label}`;
+  if (amount < 3) {
+    return `due ${nearest.label}`;
   }
 
-  return `${amount} deg ${nearest.delta > 0 ? nearest.positive : nearest.negative} of ${nearest.label}`;
+  return `${amount}° ${nearest.delta > 0 ? nearest.positive : nearest.negative} of ${nearest.label}`;
 }

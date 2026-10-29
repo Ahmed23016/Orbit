@@ -48,8 +48,44 @@
   }
 }
 
+.orbit-sway > g {
+  animation: orbitSway 5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: top center;
+}
+
+@keyframes orbitSway {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+.orbit-twinkle {
+  animation: orbitTwinkle 2.4s ease-in-out infinite;
+}
+
+@keyframes orbitTwinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .orbit-fade {
+  .orbit-fade,
+  .orbit-sway > g,
+  .orbit-twinkle {
     animation: none;
   }
 }

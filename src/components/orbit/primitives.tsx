@@ -145,14 +145,16 @@ export function NativeSelect<T extends string>({
   onChange,
   options,
   label,
+  className,
 }: {
   value: T;
   onChange: (value: T) => void;
   options: Array<{ value: T; label: string }>;
   label: string;
+  className?: string;
 }) {
   return (
-    <div className="relative max-w-[60%]">
+    <div className={cn("relative max-w-[60%]", className)}>
       <select
         aria-label={label}
         value={value}

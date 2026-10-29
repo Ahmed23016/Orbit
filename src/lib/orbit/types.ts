@@ -40,32 +40,6 @@ export type PrayerSet = {
   isha: Date;
 };
 
-export type PrayerMarker = {
-  label: string;
-  value: Date;
-};
-
-export type YearlyPrayerRow = {
-  date: Date;
-  dayOfYear: number;
-  label: string;
-  fajrMinutes: number;
-  sunriseMinutes: number;
-  dhuhrMinutes: number;
-  asrMinutes: number;
-  maghribMinutes: number;
-  ishaMinutes: number;
-  fastingMinutes: number;
-  daylightMinutes: number;
-};
-
-export type YearlyPrayerExtremes = {
-  earliestFajr: YearlyPrayerRow;
-  latestFajr: YearlyPrayerRow;
-  longestFast: YearlyPrayerRow;
-  shortestFast: YearlyPrayerRow;
-};
-
 export type MoonData = {
   age: number;
   illumination: number;

@@ -92,11 +92,6 @@ export function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
   return Math.round((utcTimestamp - date.getTime()) / 60000);
 }
 
-export function formatTime(date: Date, timeZone?: string) {
-  const parts = getTimeZoneParts(date, timeZone);
-  return `${pad(parts.hour)}:${pad(parts.minute)}`;
-}
-
 export function formatClock(date: Date, timeZone?: string, hour12 = false) {
   if (Number.isNaN(date.getTime())) {
     return "--:--";
@@ -160,38 +155,6 @@ function hijriCalendarForMethod(method: HijriMethodKey) {
   return islamicCivilCalendar;
 }
 
-export function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-export function isSameDayInTimeZone(a: Date, b: Date, timeZone: string) {
-  const aParts = getTimeZoneParts(a, timeZone);
-  const bParts = getTimeZoneParts(b, timeZone);
-
-  return (
-    aParts.year === bParts.year &&
-    aParts.month === bParts.month &&
-    aParts.day === bParts.day
-  );
-}
-
-export function formatIslamicDate(
-  date: Date,
-  timeZone: string | undefined,
-  method: HijriMethodKey,
-  adjustmentDays = 0
-) {
-  const adjustedDate = addDays(date, adjustmentDays);
-  const parts = getTimeZoneParts(adjustedDate, timeZone);
-  const gregorianDate = new CalendarDate(parts.year, parts.month, parts.day);
-  const hijriDate = toCalendar(gregorianDate, hijriCalendarForMethod(method));
-  const monthName = hijriMonthNames[hijriDate.month - 1] ?? `Month ${hijriDate.month}`;
-
-  return `${monthName} ${hijriDate.day}, ${hijriDate.year} AH`;
-}
-
 export type HijriParts = {
   day: number;
   month: number;
@@ -223,53 +186,8 @@ export function formatHijri(parts: HijriParts) {
   return `${parts.day} ${parts.monthName} ${parts.year} AH`;
 }
 
-export function formatDateLabel(date: Date, timeZone?: string) {
-  return getFormatter(timeZone, {
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
-
-export function formatDateInputValue(date: Date, timeZone?: string) {
-  const parts = getTimeZoneParts(date, timeZone);
-  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
-}
-
-export function parseDateInputValue(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return null;
-  }
-
-  return new Date(year, month - 1, day, 12, 0, 0);
-}
-
 export function formatTimeZoneLabel(timeZone: string) {
   return timeZone.split("/").pop()?.replaceAll("_", " ") ?? timeZone;
-}
-
-export function formatMinutesAsClock(totalMinutes: number) {
-  const normalized = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
-  const hours = Math.floor(normalized / 60);
-  const minutes = normalized % 60;
-  return `${pad(hours)}:${pad(minutes)}`;
-}
-
-export function minutesSinceMidnight(date: Date, timeZone?: string) {
-  const parts = getTimeZoneParts(date, timeZone);
-  return parts.hour * 60 + parts.minute + parts.second / 60;
-}
-
-export function startOfDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-export function hourValue(date: Date, timeZone?: string) {
-  const parts = getTimeZoneParts(date, timeZone);
-  return parts.hour + parts.minute / 60 + parts.second / 3600;
 }
 
 export function minuteDiff(a: Date, b: Date) {
@@ -283,14 +201,6 @@ export function formatDuration(totalMinutes: number) {
   const m = abs % 60;
   if (h === 0) return `${m}m`;
   return `${h}h ${m}m`;
-}
-
-export function countdown(target: Date, now: Date) {
-  const diff = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
-  const h = Math.floor(diff / 3600);
-  const m = Math.floor((diff % 3600) / 60);
-  const s = diff % 60;
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 export function formatCoordinate(value: number, type: "lat" | "lng") {

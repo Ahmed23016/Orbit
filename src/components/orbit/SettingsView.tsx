@@ -1,6 +1,7 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { BellRing, History, LoaderCircle, LocateFixed, Search, X } from "lucide-react";
+import { BellRing, History, LoaderCircle, LocateFixed, Play, Search, X } from "lucide-react";
 
+import { MosqueSettings, QuietSettings } from "@/components/orbit/ExtraSettings";
 import {
   Disclosure,
   NativeSelect,
@@ -16,9 +17,10 @@ import {
   locationPresets,
 } from "@/lib/orbit/constants";
 import { resolveTimeZone } from "@/lib/orbit/location";
+import { resolveHighLatitudeRule } from "@/lib/orbit/prayer";
 import { FARD_KEYS, PRAYER_LABELS } from "@/lib/orbit/schedule";
-import { requestNotificationPermission } from "@/services/prayerNotifications";
-import type { AppSettings, SettingsPatch } from "@/lib/orbit/settings";
+import { ALERT_SOUNDS, requestNotificationPermission } from "@/services/prayerNotifications";
+import type { AlertSound, AppSettings, SettingsPatch } from "@/lib/orbit/settings";
 import {
   formatCoordinate,
   formatLocationUpdatedAt,
@@ -31,6 +33,16 @@ import type {
   PresetKey,
 } from "@/lib/orbit/types";
 import { cn } from "@/lib/utils";
+
+let previewAudio: HTMLAudioElement | null = null;
+
+/** Plays a sound preview, stopping any that is already playing. */
+function playPreview(file: string | null) {
+  if (!file) return;
+  previewAudio?.pause();
+  previewAudio = new Audio(`/sounds/${file}`);
+  void previewAudio.play().catch(() => {});
+}
 
 type SearchResult = {
   id: string;
@@ -513,6 +525,101 @@ export function SettingsView({
             />
           </Row>
 
+          <Row
+            label="High latitudes"
+            hint={
+              Math.abs(location.latitude) >= 48
+                ? `Matters here (${Math.abs(location.latitude).toFixed(0)}°): in summer the twilight lasts all night.`
+                : "Only affects places above about 48° latitude."
+            }
+          >
+            <NativeSelect
+              label="High-latitude rule"
+              value={settings.highLatitude}
+              onChange={(highLatitude) => onUpdate({ highLatitude })}
+              options={[
+                {
+                  value: "auto",
+                  label: `Auto · ${
+                    resolveHighLatitudeRule("auto", location.latitude, location.longitude) === "seventhofthenight"
+                      ? "1/7 of night"
+                      : "middle of night"
+                  }`,
+                },
+                { value: "seventhofthenight", label: "One-seventh of the night" },
+                { value: "middleofthenight", label: "Middle of the night" },
+                { value: "twilightangle", label: "Twilight angle" },
+              ]}
+            />
+          </Row>
+
+          <Disclosure
+            title={
+              <span className="flex items-center gap-2">
+                Fine-tune minutes
+                {Object.values(settings.timeOffsets).some((value) => value !== 0) ? (
+                  <span className="rounded-full bg-o-accent-soft px-2 py-0.5 text-[11px] font-semibold text-o-accent">
+                    On
+                  </span>
+                ) : null}
+              </span>
+            }
+          >
+            <p className="pb-3 text-xs text-o-muted">
+              Shift any time to match your mosque's printed timetable. Applies everywhere: the list,
+              notifications, widgets and silencing.
+            </p>
+            <div className="grid gap-1.5">
+              {(["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"] as const).map((key) => {
+                const value = settings.timeOffsets[key];
+                const set = (next: number) =>
+                  onUpdate({ timeOffsets: { [key]: Math.max(-30, Math.min(30, next)) } });
+                return (
+                  <div key={key} className="flex items-center justify-between gap-3 rounded-xl bg-o-surface-2 py-1 pr-1 pl-3.5">
+                    <span className="text-sm">{PRAYER_LABELS[key]}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={`${PRAYER_LABELS[key]} one minute earlier`}
+                        onClick={() => set(value - 1)}
+                        className="h-8 w-8 rounded-lg text-lg text-o-text transition hover:bg-o-surface active:scale-90"
+                      >
+                        −
+                      </button>
+                      <span
+                        className={cn(
+                          "w-14 text-center text-sm font-semibold tabular-nums",
+                          value === 0 ? "text-o-faint" : "text-o-accent"
+                        )}
+                      >
+                        {value === 0 ? "0 min" : `${value > 0 ? "+" : "−"}${Math.abs(value)} min`}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${PRAYER_LABELS[key]} one minute later`}
+                        onClick={() => set(value + 1)}
+                        className="h-8 w-8 rounded-lg text-lg text-o-text transition hover:bg-o-surface active:scale-90"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {Object.values(settings.timeOffsets).some((value) => value !== 0) ? (
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdate({ timeOffsets: { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 } })
+                }
+                className="mt-3 text-xs font-medium text-o-muted underline-offset-2 hover:underline"
+              >
+                Reset all to 0
+              </button>
+            ) : null}
+          </Disclosure>
+
           <Disclosure title="Custom angles">
             <div className="grid gap-3">
               <div className="flex items-center justify-between gap-4">
@@ -654,6 +761,37 @@ export function SettingsView({
                   ]}
                 />
               </div>
+              {(
+                [
+                  ["sound", "Sound"],
+                  ["fajrSound", "Fajr sound"],
+                ] as const
+              ).map(([field, label]) => (
+                <div key={field} className="flex items-center justify-between gap-3">
+                  <span className="text-sm">{label}</span>
+                  <div className="flex items-center gap-2">
+                    <NativeSelect
+                      label={label}
+                      className="w-36 max-w-none"
+                      value={notifications[field]}
+                      onChange={(value) => onUpdate({ notifications: { [field]: value } })}
+                      options={(Object.keys(ALERT_SOUNDS) as AlertSound[]).map((key) => ({
+                        value: key,
+                        label: ALERT_SOUNDS[key].label,
+                      }))}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Play ${ALERT_SOUNDS[notifications[field]].label}`}
+                      disabled={!ALERT_SOUNDS[notifications[field]].file}
+                      onClick={() => playPreview(ALERT_SOUNDS[notifications[field]].file)}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-o-accent-soft text-o-accent transition active:scale-90 disabled:opacity-30"
+                    >
+                      <Play className="h-4 w-4" fill="currentColor" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : null}
 
@@ -666,6 +804,10 @@ export function SettingsView({
           </Row>
         </Panel>
       </div>
+
+      <QuietSettings settings={settings} onUpdate={onUpdate} />
+
+      <MosqueSettings settings={settings} onUpdate={onUpdate} />
 
       <div>
         <SectionLabel>Hijri date</SectionLabel>

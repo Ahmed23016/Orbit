@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Moon, Sparkles } from "lucide-react";
 
 import { Panel, Segmented } from "@/components/orbit/primitives";
 import { PrayerTimesList } from "@/components/orbit/PrayerTimesList";
@@ -26,6 +26,7 @@ import {
   getDateInTimeZone,
   getHijriParts,
 } from "@/lib/orbit/time";
+import { getCrescentWatch } from "@/lib/orbit/sighting";
 import type { HijriMethodKey } from "@/lib/orbit/types";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,8 @@ type MonthViewProps = {
   hijriMethod: HijriMethodKey;
   hijriAdjustment: number;
   hour12: boolean;
+  latitude: number;
+  longitude: number;
 };
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -43,7 +46,15 @@ function monthStartOf(day: Date) {
   return new Date(day.getFullYear(), day.getMonth(), 1, 12, 0, 0);
 }
 
-export function MonthView({ calc, timeZone, hijriMethod, hijriAdjustment, hour12 }: MonthViewProps) {
+export function MonthView({
+  calc,
+  timeZone,
+  hijriMethod,
+  hijriAdjustment,
+  hour12,
+  latitude,
+  longitude,
+}: MonthViewProps) {
   const now = useNow(60000);
   const today = getDateInTimeZone(now, timeZone);
   const [monthStart, setMonthStart] = useState(() => monthStartOf(today));
@@ -106,6 +117,15 @@ export function MonthView({ calc, timeZone, hijriMethod, hijriAdjustment, hour12
 
   const selectedEntry = days.find((entry) => isSameDay(entry.date, selected)) ?? days[0];
   const selectedNight = getNightTimes(selectedEntry.date, calc);
+  const selectedKey = dayKey(selectedEntry.date);
+  const crescent = useMemo(() => {
+    const sunset = calc(selectedEntry.date).maghrib;
+    if (Number.isNaN(sunset.getTime())) return null;
+    const watch = getCrescentWatch(sunset, calc, latitude, longitude, timeZone);
+    return watch.evenings.find((evening) => dayKey(evening.day) === selectedKey)?.forecast ?? null;
+    // selectedEntry is derived from selectedKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey, calc, latitude, longitude, timeZone]);
 
   return (
     <div className="orbit-fade grid grid-cols-1 gap-4">
@@ -249,7 +269,7 @@ export function MonthView({ calc, timeZone, hijriMethod, hijriAdjustment, hour12
                 {formatDay(selectedEntry.date, { weekday: "long", day: "numeric", month: "long" })}
               </div>
               <div className="mt-0.5 text-xs text-o-muted">{formatHijri(selectedEntry.hijri)}</div>
-              {selectedEntry.events.length > 0 || isWhiteDay(selectedEntry.hijri) ? (
+              {selectedEntry.events.length > 0 || isWhiteDay(selectedEntry.hijri) || crescent ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {selectedEntry.events.map((event) => (
                     <span
@@ -263,6 +283,20 @@ export function MonthView({ calc, timeZone, hijriMethod, hijriAdjustment, hour12
                   {isWhiteDay(selectedEntry.hijri) ? (
                     <span className="inline-flex h-6 items-center rounded-full bg-o-surface-2 px-2.5 text-xs text-o-muted">
                       White day · sunnah fast
+                    </span>
+                  ) : null}
+                  {crescent ? (
+                    <span
+                      className={cn(
+                        "inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-xs font-medium",
+                        crescent.verdict === "easy" || crescent.verdict === "likely"
+                          ? "bg-o-accent-soft text-o-accent"
+                          : "bg-o-surface-2 text-o-muted"
+                      )}
+                      title={crescent.detail}
+                    >
+                      <Moon className="h-3 w-3" />
+                      Crescent: {crescent.title.toLowerCase()}
                     </span>
                   ) : null}
                 </div>

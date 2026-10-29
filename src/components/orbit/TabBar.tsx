@@ -1,12 +1,13 @@
-import { CalendarDays, Compass, Settings2, Sun, type LucideIcon } from "lucide-react";
+import { CalendarDays, Compass, HandHeart, Settings2, Sun, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type TabKey = "today" | "calendar" | "qibla" | "settings";
+export type TabKey = "today" | "calendar" | "practice" | "qibla" | "settings";
 
 const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "today", label: "Today", icon: Sun },
   { key: "calendar", label: "Calendar", icon: CalendarDays },
+  { key: "practice", label: "Practice", icon: HandHeart },
   { key: "qibla", label: "Qibla", icon: Compass },
   { key: "settings", label: "Settings", icon: Settings2 },
 ];
@@ -14,7 +15,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
 export function TabBar({ value, onChange }: { value: TabKey; onChange: (tab: TabKey) => void }) {
   return (
     <nav aria-label="Main" className="orbit-tabbar fixed inset-x-0 bottom-0 z-40 border-t border-o-line">
-      <div className="mx-auto grid max-w-xl grid-cols-4 px-2 pt-1">
+      <div className="mx-auto grid max-w-xl grid-cols-5 px-1 pt-1">
         {TABS.map(({ key, label, icon: Icon }) => {
           const active = key === value;
 
@@ -31,7 +32,7 @@ export function TabBar({ value, onChange }: { value: TabKey; onChange: (tab: Tab
             >
               <span
                 className={cn(
-                  "grid h-8 w-14 place-items-center rounded-full transition-all duration-300",
+                  "grid h-8 w-12 place-items-center rounded-full transition-all duration-300",
                   active ? "bg-o-accent-soft text-o-accent" : "group-active:scale-90"
                 )}
               >
